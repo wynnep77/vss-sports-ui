@@ -215,11 +215,19 @@ setup_vss_blueprint() {
     VLM_PORT=30082
     VST_PORT=30888
     VSS_AGENT_PORT=8000
+    VSS_APPS_DIR="$INSTALL_DIR/video-search-and-summarization/services/ui"
 
     sed -i "s/^LLM_BASE_URL=.*/LLM_BASE_URL=http:\/\/\${HOST_IP}:${LLM_PORT}/" "$ENV_FILE"
     sed -i "s/^VLM_BASE_URL=.*/VLM_BASE_URL=http:\/\/\${HOST_IP}:${VLM_PORT}/" "$ENV_FILE"
     sed -i "s/^VST_INTERNAL_URL=.*/VST_INTERNAL_URL=http:\/\/\${HOST_IP}:${VST_PORT}/" "$ENV_FILE"
     sed -i "s/^VST_EXTERNAL_URL=.*/VST_EXTERNAL_URL=http:\/\/\${HOST_IP}:${VST_PORT}/" "$ENV_FILE"
+
+    # Add VSS_APPS_DIR if not present
+    if ! grep -q "^VSS_APPS_DIR=" "$ENV_FILE"; then
+        echo "VSS_APPS_DIR=$VSS_APPS_DIR" >> "$ENV_FILE"
+    else
+        sed -i "s|^VSS_APPS_DIR=.*|VSS_APPS_DIR=$VSS_APPS_DIR|" "$ENV_FILE"
+    fi
 
     print_success "VSS environment configured"
 }

@@ -197,11 +197,19 @@ function Setup-VSSBlueprint {
     $LLM_PORT = "30081"
     $VLM_PORT = "30082"
     $VST_PORT = "30888"
+    $VSS_APPS_DIR = Join-Path $INSTALL_DIR "video-search-and-summarization\services\ui"
 
     $envContent = $envContent -replace "LLM_BASE_URL=.*", "LLM_BASE_URL=http://`${HOST_IP}:$LLM_PORT"
     $envContent = $envContent -replace "VLM_BASE_URL=.*", "VLM_BASE_URL=http://`${HOST_IP}:$VLM_PORT"
     $envContent = $envContent -replace "VST_INTERNAL_URL=.*", "VST_INTERNAL_URL=http://`${HOST_IP}:$VST_PORT"
     $envContent = $envContent -replace "VST_EXTERNAL_URL=.*", "VST_EXTERNAL_URL=http://`${HOST_IP}:$VST_PORT"
+
+    # Add VSS_APPS_DIR if not present
+    if ($envContent -notmatch "VSS_APPS_DIR=") {
+        $envContent += "`nVSS_APPS_DIR=$VSS_APPS_DIR"
+    } else {
+        $envContent = $envContent -replace "VSS_APPS_DIR=.*", "VSS_APPS_DIR=$VSS_APPS_DIR"
+    }
 
     Set-Content $ENV_FILE $envContent
 

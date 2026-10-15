@@ -128,10 +128,16 @@ Update the following variables in `.env`:
 ```bash
 HOST_IP=<your-server-ip>
 NGC_API_KEY=<your-ngc-api-key>
+VSS_APPS_DIR=<path-to-vss-services-ui>
 LLM_BASE_URL=http://${HOST_IP}:30081
 VLM_BASE_URL=http://${HOST_IP}:30082
 VST_INTERNAL_URL=http://${HOST_IP}:30888
 VST_EXTERNAL_URL=http://${HOST_IP}:30888
+```
+
+Note: `VSS_APPS_DIR` should point to the UI services directory, typically:
+```bash
+VSS_APPS_DIR=/path/to/video-search-and-summarization/services/ui
 ```
 
 ### Step 6: Deploy VSS Backend
