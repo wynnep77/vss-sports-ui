@@ -236,6 +236,7 @@ setup_vss_blueprint() {
     VST_PORT=30888
     VSS_AGENT_PORT=8000
     VSS_APPS_DIR="$INSTALL_DIR/video-search-and-summarization/services/ui"
+    VSS_DATA_DIR="$INSTALL_DIR/vss-data"
 
     # Update VSS_APPS_DIR in .env to use the actual installation directory
     sed -i "s|VSS_APPS_DIR=.*|VSS_APPS_DIR=$VSS_APPS_DIR|" "$VSS_ENV_FILE"
@@ -255,6 +256,29 @@ setup_vss_blueprint() {
     else
         sed -i "s|^VSS_APPS_DIR=.*|VSS_APPS_DIR=$VSS_APPS_DIR|" "$VSS_ENV_FILE"
         print_success "Updated VSS_APPS_DIR in VSS .env file"
+    fi
+
+    # Configure overrides.env file
+    OVERRIDES_ENV_FILE="$PROFILE_DIR/overrides.env"
+    if [ -f "$OVERRIDES_ENV_FILE" ]; then
+        print_info "Configuring overrides.env file..."
+        
+        # Backup original
+        cp "$OVERRIDES_ENV_FILE" "${OVERRIDES_ENV_FILE}.backup"
+        
+        # Update key variables in overrides.env
+        sed -i "s|VSS_APPS_DIR=\"/path/to/deploy/docker\"|VSS_APPS_DIR=\"$INSTALL_DIR/video-search-and-summarization\"|" "$OVERRIDES_ENV_FILE"
+        sed -i "s|VSS_DATA_DIR=\"/path/to/vss-apps-data\"|VSS_DATA_DIR=\"$VSS_DATA_DIR\"|" "$OVERRIDES_ENV_FILE"
+        sed -i "s|HOST_IP='<HOST_IP>'|HOST_IP='$HOST_IP'|" "$OVERRIDES_ENV_FILE"
+        sed -i "s|NGC_CLI_API_KEY=\${NGC_CLI_API_KEY:-}|NGC_CLI_API_KEY=$NGC_API_KEY|" "$OVERRIDES_ENV_FILE"
+        sed -i "s|NVIDIA_API_KEY=\${NVIDIA_API_KEY:-}|NVIDIA_API_KEY=$NGC_API_KEY|" "$OVERRIDES_ENV_FILE"
+        
+        # Set hardware profile to RTXPRO6000BW for RTX PRO 6000
+        sed -i "s|HARDWARE_PROFILE=H100|HARDWARE_PROFILE=RTXPRO6000BW|" "$OVERRIDES_ENV_FILE"
+        
+        print_success "Configured overrides.env file"
+    else
+        print_warning "overrides.env not found at $OVERRIDES_ENV_FILE"
     fi
 
     # Copy all required .env files to VSS_APPS_DIR
