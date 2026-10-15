@@ -5,6 +5,7 @@ import './ChatInterface.css';
 function ChatInterface({ chatHistory, onChatMessage, uploadedVideos, isConnected }) {
   const [message, setMessage] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [currentResponse, setCurrentResponse] = useState('');
   const messagesEndRef = useRef(null);
 
@@ -92,9 +93,131 @@ function ChatInterface({ chatHistory, onChatMessage, uploadedVideos, isConnected
     ];
   };
 
+  const generateExecutiveSummary = async () => {
+    if (!isConnected || uploadedVideos.length === 0) {
+      alert('Please upload content and ensure connection to VSS agent');
+      return;
+    }
+
+    const videoList = uploadedVideos.map((v, i) => `${i + 1}. ${v.filename} (${v.type})`).join('\n');
+
+    const summaryPrompt = `Generate a comprehensive executive summary for the following sports content:
+
+${videoList}
+
+Please provide the analysis in the following structured format:
+
+# EXECUTIVE SUMMARY
+
+## KEY STATISTICS
+- Total content analyzed: ${uploadedVideos.length} items
+- Content types: ${uploadedVideos.map(v => v.type).join(', ')}
+- [Additional relevant statistics from the analysis]
+
+## OVERALL SUMMARY
+[Brief overall summary of all content analyzed]
+
+## PER-CONTENT ANALYSIS
+${uploadedVideos.map((video, index) => `
+### ${index + 1}. ${video.filename}
+**Type:** ${video.type.toUpperCase()}
+**Summary:** [Detailed summary of this specific content]
+**Key Findings:** [Key insights from this content]
+`).join('\n')}
+
+## OPPORTUNITIES
+- [List identified opportunities from the analysis]
+- [Strategic opportunities]
+- [Performance improvement opportunities]
+
+## RISKS
+- [List identified risks from the analysis]
+- [Performance risks]
+- [Strategic risks]
+
+## RECOMMENDATIONS
+- [Actionable recommendations based on the analysis]
+- [Priority recommendations]
+- [Long-term strategic recommendations]
+
+## CONCLUSION
+[Overall conclusion and next steps]`;
+
+    const userMessage = {
+      role: 'user',
+      content: summaryPrompt,
+      timestamp: new Date().toISOString(),
+      isExecutiveSummary: true,
+    };
+
+    onChatMessage(userMessage);
+    setIsGeneratingSummary(true);
+    setIsStreaming(true);
+    setCurrentResponse('');
+
+    try {
+      let fullResponse = '';
+
+      await streamChatWithAgent(
+        summaryPrompt,
+        (chunk) => {
+          if (chunk.content) {
+            fullResponse += chunk.content;
+            setCurrentResponse(fullResponse);
+          }
+        },
+        null
+      );
+
+      const assistantMessage = {
+        role: 'assistant',
+        content: fullResponse,
+        timestamp: new Date().toISOString(),
+        isExecutiveSummary: true,
+      };
+
+      onChatMessage(assistantMessage);
+      setCurrentResponse('');
+    } catch (error) {
+      console.error('Executive summary generation error:', error);
+      const errorMessage = {
+        role: 'assistant',
+        content: 'Sorry, I encountered an error generating the executive summary. Please try again.',
+        timestamp: new Date().toISOString(),
+        isExecutiveSummary: true,
+      };
+      onChatMessage(errorMessage);
+    } finally {
+      setIsGeneratingSummary(false);
+      setIsStreaming(false);
+    }
+  };
+
+  const downloadExecutiveSummary = (content, filename) => {
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `executive-summary-${new Date().toISOString().split('T')[0]}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="chat-interface">
-      <h2 className="section-title">🏆 Sports Insights Chat</h2>
+      <div className="chat-header">
+        <h2 className="section-title">🏆 Sports Insights Chat</h2>
+        <button
+          className="exec-summary-button"
+          onClick={generateExecutiveSummary}
+          disabled={!isConnected || isStreaming || uploadedVideos.length === 0}
+          title="Generate comprehensive executive summary of all uploaded content"
+        >
+          {isGeneratingSummary ? '⏳ Generating...' : '📊 Generate Executive Summary'}
+        </button>
+      </div>
 
       <div className="chat-container">
         <div className="messages-container">
@@ -124,17 +247,36 @@ function ChatInterface({ chatHistory, onChatMessage, uploadedVideos, isConnected
           {chatHistory.map((msg, index) => (
             <div
               key={index}
-              className={`message ${msg.role === 'user' ? 'user-message' : 'assistant-message'}`}
+              className={`message ${msg.role === 'user' ? 'user-message' : 'assistant-message'} ${msg.isExecutiveSummary ? 'executive-summary' : ''}`}
             >
               <div className="message-header">
                 <span className="message-role">
-                  {msg.role === 'user' ? '👤 You' : '🤖 AI Analyst'}
+                  {msg.role === 'user' ? '👤 You' : msg.isExecutiveSummary ? '📊 Executive Summary' : '🤖 AI Analyst'}
                 </span>
-                <span className="message-time">
-                  {new Date(msg.timestamp).toLocaleTimeString()}
-                </span>
+                <div className="message-header-actions">
+                  {msg.isExecutiveSummary && msg.role === 'assistant' && (
+                    <button
+                      className="download-button"
+                      onClick={() => downloadExecutiveSummary(msg.content, msg.filename)}
+                      title="Download as Markdown"
+                    >
+                      📥 Download
+                    </button>
+                  )}
+                  <span className="message-time">
+                    {new Date(msg.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
               </div>
-              <div className="message-content">{msg.content}</div>
+              <div className="message-content">
+                {msg.isExecutiveSummary ? (
+                  <div className="executive-summary-content">
+                    {msg.content}
+                  </div>
+                ) : (
+                  msg.content
+                )}
+              </div>
             </div>
           ))}
 
