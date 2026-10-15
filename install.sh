@@ -248,6 +248,15 @@ setup_vss_blueprint() {
     # Also update the vss-sports-ui .env file
     cp "$VSS_ENV_FILE" "$SPORTS_UI_ENV"
 
+    # Ensure VSS_APPS_DIR is set in the VSS .env file for Docker Compose
+    if ! grep -q "^VSS_APPS_DIR=" "$VSS_ENV_FILE"; then
+        echo "VSS_APPS_DIR=$VSS_APPS_DIR" >> "$VSS_ENV_FILE"
+        print_success "Added VSS_APPS_DIR to VSS .env file"
+    else
+        sed -i "s|^VSS_APPS_DIR=.*|VSS_APPS_DIR=$VSS_APPS_DIR|" "$VSS_ENV_FILE"
+        print_success "Updated VSS_APPS_DIR in VSS .env file"
+    fi
+
     # Copy all required .env files to VSS_APPS_DIR
     print_info "Copying required .env files to VSS_APPS_DIR..."
 
@@ -289,6 +298,10 @@ deploy_vss_backend() {
     print_header "Deploying VSS Backend"
 
     cd "$INSTALL_DIR/video-search-and-summarization/deploy/docker"
+
+    # Export VSS_APPS_DIR for Docker Compose
+    export VSS_APPS_DIR="$INSTALL_DIR/video-search-and-summarization/services/ui"
+    print_info "Setting VSS_APPS_DIR=$VSS_APPS_DIR"
 
     print_info "Starting VSS services with Docker Compose..."
     print_warning "This may take 10-20 minutes on first run (downloading Docker images)"
