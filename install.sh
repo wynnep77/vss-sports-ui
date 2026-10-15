@@ -389,19 +389,29 @@ main() {
     CURRENT_DIR="$(pwd)"
     if [ "$(basename $CURRENT_DIR)" = "vss-sports-ui" ]; then
         print_info "Running from within vss-sports-ui directory"
+        # If running from vss-sports-ui, use parent as install dir
         INSTALL_DIR="$(dirname $CURRENT_DIR)"
         SPORTS_UI_DIR="$CURRENT_DIR"
     else
+        # If running from elsewhere, use vss-deployment
         INSTALL_DIR="$HOME/vss-deployment"
         SPORTS_UI_DIR="$INSTALL_DIR/vss-sports-ui"
+    fi
+
+    # Special case: if the parent directory is the user's home, keep vss-sports-ui in home
+    if [ "$(dirname $CURRENT_DIR)" = "$HOME" ] && [ "$(basename $CURRENT_DIR)" = "vss-sports-ui" ]; then
+        INSTALL_DIR="$HOME"
+        SPORTS_UI_DIR="$HOME/vss-sports-ui"
     fi
 
     echo "This script will install:"
     echo "  1. NVIDIA VSS Blueprint backend"
     echo "  2. Sports Analysis frontend"
     echo ""
+    echo "Current directory: $CURRENT_DIR"
     echo "Installation directory: $INSTALL_DIR"
     echo "Sports UI directory: $SPORTS_UI_DIR"
+    echo "Expected .env location: $SPORTS_UI_DIR/.env"
     echo ""
     echo "Requirements:"
     echo "  - Ubuntu OS"
@@ -437,6 +447,9 @@ main() {
     # Step 5.5: Check for .env file
     print_header "Checking Environment Configuration"
 
+    print_info "Looking for .env in: $SPORTS_UI_DIR/.env"
+    print_info "Also checking: $CURRENT_DIR/.env"
+
     if [ -f "$SPORTS_UI_DIR/.env" ]; then
         print_success "Found .env at $SPORTS_UI_DIR/.env"
     elif [ -f "$CURRENT_DIR/.env" ]; then
@@ -444,9 +457,15 @@ main() {
         cp "$CURRENT_DIR/.env" "$SPORTS_UI_DIR/.env"
     else
         print_error ".env file not found"
-        print_info "Please create a .env file with your configuration"
-        print_info "You can copy the template: cp $SPORTS_UI_DIR/.env.template $SPORTS_UI_DIR/.env"
-        print_info "Then edit it with your NGC API key and other settings"
+        print_info "Expected locations:"
+        print_info "  - $SPORTS_UI_DIR/.env"
+        print_info "  - $CURRENT_DIR/.env"
+        print_info ""
+        print_info "To create the .env file:"
+        print_info "  cp $SPORTS_UI_DIR/.env.template $SPORTS_UI_DIR/.env"
+        print_info "  nano $SPORTS_UI_DIR/.env"
+        print_info ""
+        print_info "Then fill in your NGC API key and other settings"
         exit 1
     fi
 
