@@ -248,6 +248,27 @@ setup_vss_blueprint() {
     # Also update the vss-sports-ui .env file
     cp "$VSS_ENV_FILE" "$SPORTS_UI_ENV"
 
+    # Ensure agent.env file exists in the correct location
+    # The agent service expects agent.env at $VSS_APPS_DIR/services/agent/agent.env
+    AGENT_ENV_SOURCE="$INSTALL_DIR/video-search-and-summarization/deploy/docker/services/agent/agent.env"
+    AGENT_ENV_DEST="$VSS_APPS_DIR/services/agent/agent.env"
+
+    print_info "Ensuring agent.env is in place..."
+    print_info "Source: $AGENT_ENV_SOURCE"
+    print_info "Destination: $AGENT_ENV_DEST"
+
+    if [ -f "$AGENT_ENV_SOURCE" ]; then
+        # Create directory if it doesn't exist
+        mkdir -p "$(dirname "$AGENT_ENV_DEST")"
+        # Copy agent.env to the VSS_APPS_DIR location
+        cp "$AGENT_ENV_SOURCE" "$AGENT_ENV_DEST"
+        print_success "Copied agent.env to $AGENT_ENV_DEST"
+    else
+        print_error "agent.env not found at $AGENT_ENV_SOURCE"
+        print_info "The agent service will fail to start without this file"
+        exit 1
+    fi
+
     print_success "VSS environment configured"
 }
 
