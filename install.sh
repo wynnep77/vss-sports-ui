@@ -194,21 +194,40 @@ setup_vss_blueprint() {
     # Create environment file for dev-profile-base
     print_info "Configuring VSS environment..."
 
-    PROFILE_DIR="$INSTALL_DIR/video-search-and-summarization/deploy/docker/developer-profiles/dev-profile-base"
-    ENV_FILE="$PROFILE_DIR/.env"
+    # Use the SPORTS_UI_DIR from main()
+    if [ -z "$SPORTS_UI_DIR" ]; then
+        SPORTS_UI_DIR="$INSTALL_DIR/vss-sports-ui"
+    fi
 
-    if [ ! -f "$ENV_FILE" ]; then
-        print_error "Environment file not found at $ENV_FILE"
-        print_info "Please ensure you're using a valid VSS Blueprint version"
+    SPORTS_UI_ENV="$SPORTS_UI_DIR/.env"
+
+    PROFILE_DIR="$INSTALL_DIR/video-search-and-summarization/deploy/docker/developer-profiles/dev-profile-base"
+    VSS_ENV_FILE="$PROFILE_DIR/.env"
+
+    # Check if vss-sports-ui .env exists
+    if [ -f "$SPORTS_UI_ENV" ]; then
+        print_info "Found .env in vss-sports-ui directory"
+        # Copy it to VSS Blueprint location
+        cp "$SPORTS_UI_ENV" "$VSS_ENV_FILE"
+        print_success "Copied .env to VSS Blueprint location"
+    elif [ -f "$VSS_ENV_FILE" ]; then
+        print_info "Found .env in VSS Blueprint directory"
+        # Copy it to vss-sports-ui directory for future use
+        cp "$VSS_ENV_FILE" "$SPORTS_UI_ENV"
+        print_success "Copied .env to vss-sports-ui directory"
+    else
+        print_error "Environment file not found"
+        print_info "Expected .env at: $SPORTS_UI_ENV or $VSS_ENV_FILE"
+        print_info "Please create a .env file with your configuration"
         exit 1
     fi
 
     # Backup original env file
-    cp "$ENV_FILE" "${ENV_FILE}.backup"
+    cp "$VSS_ENV_FILE" "${VSS_ENV_FILE}.backup"
 
     # Update environment variables
-    sed -i "s/^HOST_IP=.*/HOST_IP=$HOST_IP/" "$ENV_FILE"
-    sed -i "s/^NGC_API_KEY=.*/NGC_API_KEY=$NGC_API_KEY/" "$ENV_FILE"
+    sed -i "s/^HOST_IP=.*/HOST_IP=$HOST_IP/" "$VSS_ENV_FILE"
+    sed -i "s/^NGC_API_KEY=.*/NGC_API_KEY=$NGC_API_KEY/" "$VSS_ENV_FILE"
 
     # Set derived variables
     LLM_PORT=30081
@@ -217,17 +236,16 @@ setup_vss_blueprint() {
     VSS_AGENT_PORT=8000
     VSS_APPS_DIR="$INSTALL_DIR/video-search-and-summarization/services/ui"
 
-    sed -i "s/^LLM_BASE_URL=.*/LLM_BASE_URL=http:\/\/\${HOST_IP}:${LLM_PORT}/" "$ENV_FILE"
-    sed -i "s/^VLM_BASE_URL=.*/VLM_BASE_URL=http:\/\/\${HOST_IP}:${VLM_PORT}/" "$ENV_FILE"
-    sed -i "s/^VST_INTERNAL_URL=.*/VST_INTERNAL_URL=http:\/\/\${HOST_IP}:${VST_PORT}/" "$ENV_FILE"
-    sed -i "s/^VST_EXTERNAL_URL=.*/VST_EXTERNAL_URL=http:\/\/\${HOST_IP}:${VST_PORT}/" "$ENV_FILE"
+    # Update VSS_APPS_DIR in .env to use the actual installation directory
+    sed -i "s|VSS_APPS_DIR=.*|VSS_APPS_DIR=$VSS_APPS_DIR|" "$VSS_ENV_FILE"
 
-    # Add VSS_APPS_DIR if not present
-    if ! grep -q "^VSS_APPS_DIR=" "$ENV_FILE"; then
-        echo "VSS_APPS_DIR=$VSS_APPS_DIR" >> "$ENV_FILE"
-    else
-        sed -i "s|^VSS_APPS_DIR=.*|VSS_APPS_DIR=$VSS_APPS_DIR|" "$ENV_FILE"
-    fi
+    sed -i "s/^LLM_BASE_URL=.*/LLM_BASE_URL=http:\/\/\${HOST_IP}:${LLM_PORT}/" "$VSS_ENV_FILE"
+    sed -i "s/^VLM_BASE_URL=.*/VLM_BASE_URL=http:\/\/\${HOST_IP}:${VLM_PORT}/" "$VSS_ENV_FILE"
+    sed -i "s/^VST_INTERNAL_URL=.*/VST_INTERNAL_URL=http:\/\/\${HOST_IP}:${VST_PORT}/" "$VSS_ENV_FILE"
+    sed -i "s/^VST_EXTERNAL_URL=.*/VST_EXTERNAL_URL=http:\/\/\${HOST_IP}:${VST_PORT}/" "$VSS_ENV_FILE"
+
+    # Also update the vss-sports-ui .env file
+    cp "$VSS_ENV_FILE" "$SPORTS_UI_ENV"
 
     print_success "VSS environment configured"
 }
@@ -274,23 +292,34 @@ setup_sports_frontend() {
 
     cd "$INSTALL_DIR"
 
-    if [ -d "vss-sports-ui" ]; then
+    # Check if we're running from within vss-sports-ui directory
+    if [ "$(basename $(pwd))" = "vss-sports-ui" ]; then
+        print_info "Already in vss-sports-ui directory"
+        SPORTS_UI_DIR="$(pwd)"
+    elif [ -d "vss-sports-ui" ]; then
         print_warning "Sports UI directory already exists. Pulling latest changes..."
         cd vss-sports-ui
         git pull
+        SPORTS_UI_DIR="$(pwd)"
     else
         print_info "Cloning Sports UI repository..."
         git clone "$FRONTEND_REPO"
         cd vss-sports-ui
+        SPORTS_UI_DIR="$(pwd)"
     fi
 
-    print_success "Sports UI cloned"
+    print_success "Sports UI cloned/updated at $SPORTS_UI_DIR"
 }
 
 deploy_sports_frontend() {
     print_header "Deploying Sports Analysis Frontend"
 
-    cd "$INSTALL_DIR/vss-sports-ui"
+    # Use the detected Sports UI directory
+    if [ -z "$SPORTS_UI_DIR" ]; then
+        SPORTS_UI_DIR="$INSTALL_DIR/vss-sports-ui"
+    fi
+
+    cd "$SPORTS_UI_DIR"
 
     print_info "Building Docker image..."
     docker build -t vss-sports-ui:latest .
@@ -355,9 +384,24 @@ print_summary() {
 
 main() {
     print_header "VSS Sports Analysis - Installation Script"
+
+    # Detect if running from within vss-sports-ui directory
+    CURRENT_DIR="$(pwd)"
+    if [ "$(basename $CURRENT_DIR)" = "vss-sports-ui" ]; then
+        print_info "Running from within vss-sports-ui directory"
+        INSTALL_DIR="$(dirname $CURRENT_DIR)"
+        SPORTS_UI_DIR="$CURRENT_DIR"
+    else
+        INSTALL_DIR="$HOME/vss-deployment"
+        SPORTS_UI_DIR="$INSTALL_DIR/vss-sports-ui"
+    fi
+
     echo "This script will install:"
     echo "  1. NVIDIA VSS Blueprint backend"
     echo "  2. Sports Analysis frontend"
+    echo ""
+    echo "Installation directory: $INSTALL_DIR"
+    echo "Sports UI directory: $SPORTS_UI_DIR"
     echo ""
     echo "Requirements:"
     echo "  - Ubuntu OS"
@@ -389,6 +433,22 @@ main() {
 
     # Step 5: Detect host IP
     detect_host_ip
+
+    # Step 5.5: Check for .env file
+    print_header "Checking Environment Configuration"
+
+    if [ -f "$SPORTS_UI_DIR/.env" ]; then
+        print_success "Found .env at $SPORTS_UI_DIR/.env"
+    elif [ -f "$CURRENT_DIR/.env" ]; then
+        print_success "Found .env at $CURRENT_DIR/.env"
+        cp "$CURRENT_DIR/.env" "$SPORTS_UI_DIR/.env"
+    else
+        print_error ".env file not found"
+        print_info "Please create a .env file with your configuration"
+        print_info "You can copy the template: cp $SPORTS_UI_DIR/.env.template $SPORTS_UI_DIR/.env"
+        print_info "Then edit it with your NGC API key and other settings"
+        exit 1
+    fi
 
     # Step 6: Setup VSS Blueprint
     setup_vss_blueprint

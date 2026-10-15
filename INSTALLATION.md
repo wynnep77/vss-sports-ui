@@ -113,14 +113,20 @@ sudo systemctl restart docker
 # Clone the VSS Blueprint repository
 git clone https://github.com/NVIDIA-AI-Blueprints/video-search-and-summarization.git
 cd video-search-and-summarization
+```
 
-# Navigate to deployment directory
-cd deploy/docker
+### Step 5.5: Create Environment Configuration
 
-# Copy the base profile environment file
-cp ../developer-profiles/dev-profile-base/.env .env
+Create a `.env` file in your vss-sports-ui directory (or in the current directory if running from there):
 
-# Edit the .env file with your configuration
+```bash
+# If you have vss-sports-ui cloned
+cd ~/vss-deployment/vss-sports-ui
+
+# Copy the template
+cp .env.template .env
+
+# Edit the .env file
 nano .env
 ```
 
@@ -128,17 +134,14 @@ Update the following variables in `.env`:
 ```bash
 HOST_IP=<your-server-ip>
 NGC_API_KEY=<your-ngc-api-key>
-VSS_APPS_DIR=<path-to-vss-services-ui>
+VSS_APPS_DIR=/home/demouser/vss-deployment/video-search-and-summarization/services/ui
 LLM_BASE_URL=http://${HOST_IP}:30081
 VLM_BASE_URL=http://${HOST_IP}:30082
 VST_INTERNAL_URL=http://${HOST_IP}:30888
 VST_EXTERNAL_URL=http://${HOST_IP}:30888
 ```
 
-Note: `VSS_APPS_DIR` should point to the UI services directory, typically:
-```bash
-VSS_APPS_DIR=/path/to/video-search-and-summarization/services/ui
-```
+**Important**: The `.env` file should be located in the `vss-sports-ui` directory. The installation script will automatically copy it to the VSS Blueprint location.
 
 ### Step 6: Deploy VSS Backend
 
