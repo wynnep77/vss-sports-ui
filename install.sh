@@ -248,26 +248,39 @@ setup_vss_blueprint() {
     # Also update the vss-sports-ui .env file
     cp "$VSS_ENV_FILE" "$SPORTS_UI_ENV"
 
-    # Ensure agent.env file exists in the correct location
-    # The agent service expects agent.env at $VSS_APPS_DIR/services/agent/agent.env
-    AGENT_ENV_SOURCE="$INSTALL_DIR/video-search-and-summarization/deploy/docker/services/agent/agent.env"
-    AGENT_ENV_DEST="$VSS_APPS_DIR/services/agent/agent.env"
+    # Copy all required .env files to VSS_APPS_DIR
+    print_info "Copying required .env files to VSS_APPS_DIR..."
 
-    print_info "Ensuring agent.env is in place..."
-    print_info "Source: $AGENT_ENV_SOURCE"
-    print_info "Destination: $AGENT_ENV_DEST"
+    SERVICES_SOURCE_DIR="$INSTALL_DIR/video-search-and-summarization/deploy/docker/services"
+    SERVICES_DEST_DIR="$VSS_APPS_DIR/services"
 
-    if [ -f "$AGENT_ENV_SOURCE" ]; then
-        # Create directory if it doesn't exist
-        mkdir -p "$(dirname "$AGENT_ENV_DEST")"
-        # Copy agent.env to the VSS_APPS_DIR location
-        cp "$AGENT_ENV_SOURCE" "$AGENT_ENV_DEST"
-        print_success "Copied agent.env to $AGENT_ENV_DEST"
-    else
-        print_error "agent.env not found at $AGENT_ENV_SOURCE"
-        print_info "The agent service will fail to start without this file"
-        exit 1
-    fi
+    # List of env files to copy (relative to services directory)
+    ENV_FILES=(
+        "agent/agent.env"
+        "alert/alert.env"
+        "rtvi/rtvi.env"
+        "vios/vst.env"
+        "infra/infra.env"
+        "nim/nim.env"
+        "ui/ui.env"
+        "nvstreamer/.env"
+        "video-summarization/lvs.env"
+    )
+
+    for env_file in "${ENV_FILES[@]}"; do
+        source_file="$SERVICES_SOURCE_DIR/$env_file"
+        dest_file="$SERVICES_DEST_DIR/$env_file"
+
+        if [ -f "$source_file" ]; then
+            # Create directory if it doesn't exist
+            mkdir -p "$(dirname "$dest_file")"
+            # Copy the file
+            cp "$source_file" "$dest_file"
+            print_success "Copied $env_file"
+        else
+            print_warning "Skipping $env_file (not found at $source_file)"
+        fi
+    done
 
     print_success "VSS environment configured"
 }
