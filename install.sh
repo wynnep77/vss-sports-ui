@@ -210,15 +210,16 @@ setup_vss_blueprint() {
         # Copy it to VSS Blueprint location
         cp "$SPORTS_UI_ENV" "$VSS_ENV_FILE"
         print_success "Copied .env to VSS Blueprint location"
-    elif [ -f "$VSS_ENV_FILE" ]; then
-        print_info "Found .env in VSS Blueprint directory"
-        # Copy it to vss-sports-ui directory for future use
-        cp "$VSS_ENV_FILE" "$SPORTS_UI_ENV"
-        print_success "Copied .env to vss-sports-ui directory"
     else
-        print_error "Environment file not found"
-        print_info "Expected .env at: $SPORTS_UI_ENV or $VSS_ENV_FILE"
-        print_info "Please create a .env file with your configuration"
+        print_error "Environment file not found in vss-sports-ui directory"
+        print_info "Required location: $SPORTS_UI_ENV"
+        print_info ""
+        print_info "To create the .env file:"
+        print_info "  cd $SPORTS_UI_DIR"
+        print_info "  cp .env.template .env"
+        print_info "  nano .env"
+        print_info ""
+        print_info "Then fill in your NGC API key and other settings"
         exit 1
     fi
 
