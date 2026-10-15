@@ -521,6 +521,16 @@ main() {
 
     print_info "Looking for .env in: $SPORTS_UI_DIR/.env"
     print_info "Also checking: $CURRENT_DIR/.env"
+    print_info "SPORTS_UI_DIR=$SPORTS_UI_DIR"
+    print_info "CURRENT_DIR=$CURRENT_DIR"
+
+    # List what's actually in the directory
+    if [ -d "$SPORTS_UI_DIR" ]; then
+        print_info "Files in $SPORTS_UI_DIR:"
+        ls -la "$SPORTS_UI_DIR" | head -20
+    else
+        print_error "Directory $SPORTS_UI_DIR does not exist"
+    fi
 
     if [ -f "$SPORTS_UI_DIR/.env" ]; then
         print_success "Found .env at $SPORTS_UI_DIR/.env"
@@ -534,8 +544,9 @@ main() {
         print_info "  - $CURRENT_DIR/.env"
         print_info ""
         print_info "To create the .env file:"
-        print_info "  cp $SPORTS_UI_DIR/.env.template $SPORTS_UI_DIR/.env"
-        print_info "  nano $SPORTS_UI_DIR/.env"
+        print_info "  cd $SPORTS_UI_DIR"
+        print_info "  cp .env.template .env"
+        print_info "  nano .env"
         print_info ""
         print_info "Then fill in your NGC API key and other settings"
         exit 1
