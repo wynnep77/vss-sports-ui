@@ -112,6 +112,10 @@ CONTAINERS_ENV="$VSS_DIR/deploy/docker/containers.env"
 print_info "Profile directory: $PROFILE_DIR"
 print_info "Expected .env location: $PROFILE_ENV"
 
+# List files in the profile directory for debugging
+print_info "Files in profile directory:"
+ls -la "$PROFILE_DIR" 2>/dev/null || print_warning "Cannot list directory contents"
+
 # Find services directory, preferring docker over helm
 SERVICES_DIR=$(find "$VSS_DIR/deploy/docker" -type d -name "services" 2>/dev/null | head -1)
 
@@ -177,8 +181,8 @@ echo ""
 
 # Configure dev-profile-base .env
 print_header "Configuring dev-profile-base/.env"
-PROFILE_ENV="$VSS_DIR/deploy/docker/developer-profiles/dev-profile-base/.env"
 
+# Use the PROFILE_ENV that was set earlier
 if [ -f "$PROFILE_ENV" ]; then
     cp "$PROFILE_ENV" "${PROFILE_ENV}.backup"
     
@@ -197,13 +201,28 @@ if [ -f "$PROFILE_ENV" ]; then
     
     print_success "Configured dev-profile-base/.env"
 else
-    print_error "dev-profile-base/.env not found"
+    print_warning ".env file not found at $PROFILE_ENV"
+    print_info "Creating .env file from scratch..."
+    
+    # Create the .env file with required variables
+    cat > "$PROFILE_ENV" << EOF
+HOST_IP=$HOST_IP
+NGC_API_KEY=$NGC_API_KEY
+LLM_BASE_URL=http://\${HOST_IP}:30081
+VLM_BASE_URL=http://\${HOST_IP}:30082
+VST_INTERNAL_URL=http://\${HOST_IP}:30888
+VST_EXTERNAL_URL=http://\${HOST_IP}:30888
+VSS_APPS_DIR=$VSS_APPS_DIR
+VSS_DATA_DIR=$VSS_DATA_DIR
+EOF
+    
+    print_success "Created .env file at $PROFILE_ENV"
 fi
 
 # Configure overrides.env
 print_header "Configuring overrides.env"
-OVERRIDES_ENV="$VSS_DIR/deploy/docker/developer-profiles/dev-profile-base/overrides.env"
 
+# Use the OVERRIDES_ENV that was set earlier
 if [ -f "$OVERRIDES_ENV" ]; then
     cp "$OVERRIDES_ENV" "${OVERRIDES_ENV}.backup"
     
@@ -226,8 +245,26 @@ if [ -f "$OVERRIDES_ENV" ]; then
     
     print_success "Configured overrides.env"
 else
-    print_error "overrides.env not found at $OVERRIDES_ENV"
-    exit 1
+    print_warning "overrides.env not found at $OVERRIDES_ENV"
+    print_info "Creating overrides.env from scratch..."
+    
+    # Create the overrides.env file with required variables
+    cat > "$OVERRIDES_ENV" << EOF
+VSS_APPS_DIR=$VSS_APPS_DIR
+VSS_DATA_DIR=$VSS_DATA_DIR
+HOST_IP='$HOST_IP'
+EXTERNAL_IP=$HOST_IP
+NGC_CLI_API_KEY=$NGC_API_KEY
+NVIDIA_API_KEY=$NGC_API_KEY
+HARDWARE_PROFILE=RTXPRO6000BW
+LLM_MODE=local_shared
+VLM_MODE=local_shared
+LLM_DEVICE_ID='0'
+VLM_DEVICE_ID='0'
+RT_VLM_DEVICE_ID='0'
+EOF
+    
+    print_success "Created overrides.env at $OVERRIDES_ENV"
 fi
 
 # Copy and configure service .env files

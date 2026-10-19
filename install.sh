@@ -215,6 +215,10 @@ configure_all_env_files() {
     
     print_info "Profile directory: $PROFILE_DIR"
     print_info "Expected .env location: $PROFILE_ENV"
+    
+    # List files in the profile directory for debugging
+    print_info "Files in profile directory:"
+    ls -la "$PROFILE_DIR" 2>/dev/null || print_warning "Cannot list directory contents"
 
     # Configure dev-profile-base .env
     if [ -f "$PROFILE_ENV" ]; then
@@ -235,8 +239,22 @@ configure_all_env_files() {
         
         print_success "Configured dev-profile-base/.env"
     else
-        print_error "dev-profile-base/.env not found at $PROFILE_ENV"
-        exit 1
+        print_warning ".env file not found at $PROFILE_ENV"
+        print_info "Creating .env file from scratch..."
+        
+        # Create the .env file with required variables
+        cat > "$PROFILE_ENV" << EOF
+HOST_IP=$HOST_IP
+NGC_API_KEY=$NGC_API_KEY
+LLM_BASE_URL=http://\${HOST_IP}:30081
+VLM_BASE_URL=http://\${HOST_IP}:30082
+VST_INTERNAL_URL=http://\${HOST_IP}:30888
+VST_EXTERNAL_URL=http://\${HOST_IP}:30888
+VSS_APPS_DIR=$VSS_APPS_DIR
+VSS_DATA_DIR=$VSS_DIR/data
+EOF
+        
+        print_success "Created .env file at $PROFILE_ENV"
     fi
 
     # Configure overrides.env
@@ -253,8 +271,26 @@ configure_all_env_files() {
         
         print_success "Configured overrides.env"
     else
-        print_error "overrides.env not found at $OVERRIDES_ENV"
-        exit 1
+        print_warning "overrides.env not found at $OVERRIDES_ENV"
+        print_info "Creating overrides.env from scratch..."
+        
+        # Create the overrides.env file with required variables
+        cat > "$OVERRIDES_ENV" << EOF
+VSS_APPS_DIR=$VSS_APPS_DIR
+VSS_DATA_DIR=$VSS_DIR/data
+HOST_IP='$HOST_IP'
+EXTERNAL_IP=$HOST_IP
+NGC_CLI_API_KEY=$NGC_API_KEY
+NVIDIA_API_KEY=$NGC_API_KEY
+HARDWARE_PROFILE=RTXPRO6000BW
+LLM_MODE=local_shared
+VLM_MODE=local_shared
+LLM_DEVICE_ID='0'
+VLM_DEVICE_ID='0'
+RT_VLM_DEVICE_ID='0'
+EOF
+        
+        print_success "Created overrides.env at $OVERRIDES_ENV"
     fi
 
     # Update vss-sports-ui .env with correct VSS_APPS_DIR
