@@ -163,9 +163,28 @@ configure_all_env_files() {
     # Search for developer-profiles directory, preferring docker over helm
     DEV_PROFILES_DIR=$(find "$VSS_DIR/deploy/docker" -type d -name "developer-profiles" 2>/dev/null | head -1)
     
-    # If not found in docker, search anywhere but exclude helm
+    # If not found in docker, search anywhere but exclude helm and ensure it's the right structure
     if [ -z "$DEV_PROFILES_DIR" ]; then
+        print_warning "Could not find developer-profiles in deploy/docker"
+        print_info "Searching in other locations (excluding helm)..."
         DEV_PROFILES_DIR=$(find "$VSS_DIR" -type d -name "developer-profiles" 2>/dev/null | grep -v "/helm/" | head -1)
+    fi
+    
+    if [ -z "$DEV_PROFILES_DIR" ]; then
+        print_error "Could not find developer-profiles directory anywhere"
+        print_info "Searched in: $VSS_DIR"
+        print_info "Please ensure the VSS Blueprint is properly cloned"
+        exit 1
+    fi
+    
+    print_info "Found developer-profiles at: $DEV_PROFILES_DIR"
+    
+    # Verify it's the docker deployment (not helm)
+    if echo "$DEV_PROFILES_DIR" | grep -q "/helm/"; then
+        print_error "Found helm deployment instead of docker deployment"
+        print_info "Location: $DEV_PROFILES_DIR"
+        print_info "The script requires the docker deployment configuration"
+        exit 1
     fi
     
     if [ -z "$DEV_PROFILES_DIR" ]; then
@@ -185,14 +204,17 @@ configure_all_env_files() {
     PROFILE_DIR=""
     if [ -d "$DEV_PROFILES_DIR/dev-profile-base" ]; then
         PROFILE_DIR="$DEV_PROFILES_DIR/dev-profile-base"
+        print_info "Using dev-profile-base subdirectory"
     else
         PROFILE_DIR="$DEV_PROFILES_DIR"
+        print_info "Using developer-profiles directory directly"
     fi
     
     PROFILE_ENV="$PROFILE_DIR/.env"
     OVERRIDES_ENV="$PROFILE_DIR/overrides.env"
     
-    print_info "Using profile directory: $PROFILE_DIR"
+    print_info "Profile directory: $PROFILE_DIR"
+    print_info "Expected .env location: $PROFILE_ENV"
 
     # Configure dev-profile-base .env
     if [ -f "$PROFILE_ENV" ]; then
