@@ -536,10 +536,15 @@ deploy_vss_backend() {
     export VLM_DEVICE_ID='0'
     export RT_VLM_DEVICE_ID='0'
     
+    # Explicitly prevent driver installation
+    export SKIP_DRIVER_INSTALL=true
+    export NVIDIA_DRIVER_INSTALL=false
+    
     print_info "Setting VSS_APPS_DIR=$VSS_APPS_DIR"
     print_info "Setting VSS_DATA_DIR=$VSS_DATA_DIR"
     print_info "Setting HOST_IP=$HOST_IP"
     print_info "Setting HARDWARE_PROFILE=RTXPRO6000BW"
+    print_warning "Skipping NVIDIA driver installation (preserving version 580.105.08)"
 
     print_info "Starting VSS services with Docker Compose..."
     print_warning "This may take 10-20 minutes on first run (downloading Docker images)"
@@ -684,7 +689,12 @@ main() {
     print_warning "IMPORTANT: This script will NOT install or modify NVIDIA drivers"
     print_info "Your existing NVIDIA drivers will be preserved"
     print_info "If you need to install drivers, do so manually before running this script"
+    print_info "Current driver version will be preserved (e.g., 580.105.08)"
     echo ""
+
+    # Export global variables to prevent driver installation
+    export SKIP_DRIVER_INSTALL=true
+    export NVIDIA_DRIVER_INSTALL=false
 
     # Detect if running from within vss-sports-ui directory
     CURRENT_DIR="$(pwd)"
