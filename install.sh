@@ -525,7 +525,21 @@ deploy_vss_backend() {
 
     # Export VSS_APPS_DIR for Docker Compose (use the dynamically discovered path)
     export VSS_APPS_DIR="$VSS_APPS_DIR"
+    export VSS_DATA_DIR="$VSS_DIR/data"
+    export HOST_IP="$HOST_IP"
+    export NGC_CLI_API_KEY="$NGC_API_KEY"
+    export NVIDIA_API_KEY="$NGC_API_KEY"
+    export HARDWARE_PROFILE="RTXPRO6000BW"
+    export LLM_MODE="local_shared"
+    export VLM_MODE="local_shared"
+    export LLM_DEVICE_ID='0'
+    export VLM_DEVICE_ID='0'
+    export RT_VLM_DEVICE_ID='0'
+    
     print_info "Setting VSS_APPS_DIR=$VSS_APPS_DIR"
+    print_info "Setting VSS_DATA_DIR=$VSS_DATA_DIR"
+    print_info "Setting HOST_IP=$HOST_IP"
+    print_info "Setting HARDWARE_PROFILE=RTXPRO6000BW"
 
     print_info "Starting VSS services with Docker Compose..."
     print_warning "This may take 10-20 minutes on first run (downloading Docker images)"
@@ -538,9 +552,10 @@ deploy_vss_backend() {
     fi
 
     print_info "Using .env file: $PROFILE_ENV"
+    print_info "Using overrides.env file: $OVERRIDES_ENV"
 
-    # Start the services
-    docker-compose -f compose.yml --env-file "$PROFILE_ENV" up -d
+    # Start the services - load both .env files (overrides.env takes precedence)
+    docker-compose -f compose.yml --env-file "$PROFILE_ENV" --env-file "$OVERRIDES_ENV" up -d
 
     print_success "VSS backend services started"
     print_info "Waiting for services to be ready..."
