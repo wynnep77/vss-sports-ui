@@ -96,6 +96,33 @@ check_gpu() {
 }
 
 ################################################################################
+# Cleanup Functions
+################################################################################
+
+cleanup_old_installation() {
+    print_header "Cleaning Up Old Installations"
+
+    # Check for old VSS installation in home directory
+    OLD_VSS_DIR="$HOME/video-search-and-summarization"
+
+    if [ -d "$OLD_VSS_DIR" ]; then
+        print_warning "Found old VSS installation at $OLD_VSS_DIR"
+        print_info "This may cause conflicts with the new installation"
+        read -p "Remove old installation? (y/n): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            print_info "Removing old installation..."
+            sudo rm -rf "$OLD_VSS_DIR"
+            print_success "Old installation removed"
+        else
+            print_warning "Keeping old installation - this may cause issues"
+        fi
+    else
+        print_success "No old installation found"
+    fi
+}
+
+################################################################################
 # Environment Configuration
 ################################################################################
 
@@ -528,6 +555,9 @@ main() {
         print_info "Installation cancelled"
         exit 0
     fi
+
+    # Step 0: Cleanup old installations
+    cleanup_old_installation
 
     # Step 1: Check GPU
     if ! check_gpu; then
