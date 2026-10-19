@@ -277,6 +277,14 @@ configure_all_env_files() {
     fi
 
     print_success "All environment files configured"
+
+    # Copy the configured .env to VSS Blueprint location
+    print_info "Copying configured .env to VSS Blueprint location..."
+    
+    if [ -f "$PROFILE_ENV" ]; then
+        cp "$SPORTS_UI_ENV" "$PROFILE_ENV"
+        print_success "Copied .env to VSS Blueprint location"
+    fi
 }
 
 ################################################################################
@@ -378,35 +386,6 @@ setup_vss_blueprint() {
     fi
 
     print_success "VSS Blueprint cloned"
-
-    # Copy the .env file from vss-sports-ui to VSS Blueprint location
-    print_info "Copying .env file to VSS Blueprint location..."
-
-    # Use the SPORTS_UI_DIR from main()
-    if [ -z "$SPORTS_UI_DIR" ]; then
-        SPORTS_UI_DIR="$INSTALL_DIR/vss-sports-ui"
-    fi
-
-    SPORTS_UI_ENV="$SPORTS_UI_DIR/.env"
-    PROFILE_DIR="$INSTALL_DIR/video-search-and-summarization/deploy/docker/developer-profiles/dev-profile-base"
-    VSS_ENV_FILE="$PROFILE_DIR/.env"
-
-    # Check if vss-sports-ui .env exists
-    if [ -f "$SPORTS_UI_ENV" ]; then
-        print_info "Found .env in vss-sports-ui directory"
-        # Copy it to VSS Blueprint location
-        cp "$SPORTS_UI_ENV" "$VSS_ENV_FILE"
-        print_success "Copied .env to VSS Blueprint location"
-    else
-        print_error "Environment file not found in vss-sports-ui directory"
-        print_info "Required location: $SPORTS_UI_ENV"
-        print_info ""
-        print_info "The configure_all_env_files function should have created this"
-        print_info "Please check the script output for errors"
-        exit 1
-    fi
-
-    print_success "VSS environment configured"
 }
 
 deploy_vss_backend() {
@@ -610,17 +589,17 @@ main() {
     # Step 3: Install system dependencies
     install_dependencies
 
-    # Step 4: Prompt for API keys
+    # Step 4: Clone VSS Blueprint (must be done before configuring env files)
+    setup_vss_blueprint
+
+    # Step 5: Prompt for API keys
     prompt_api_keys
 
-    # Step 5: Detect host IP
+    # Step 6: Detect host IP
     detect_host_ip
 
-    # Step 6: Configure all .env files
+    # Step 7: Configure all .env files (now VSS Blueprint is cloned)
     configure_all_env_files
-
-    # Step 7: Setup VSS Blueprint
-    setup_vss_blueprint
 
     # Step 8: Deploy VSS Backend
     if ! deploy_vss_backend; then

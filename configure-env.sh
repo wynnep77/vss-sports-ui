@@ -49,6 +49,17 @@ fi
 
 VSS_DIR="$INSTALL_DIR/video-search-and-summarization"
 
+# Check if VSS Blueprint exists
+if [ ! -d "$VSS_DIR" ]; then
+    print_error "VSS Blueprint not found at: $VSS_DIR"
+    print_info "Please clone the VSS Blueprint first:"
+    print_info "  cd $INSTALL_DIR"
+    print_info "  git clone https://github.com/NVIDIA-AI-Blueprints/video-search-and-summarization.git"
+    print_info ""
+    print_info "Or run the main install.sh script which will clone it automatically"
+    exit 1
+fi
+
 # Find the actual location of deployment templates
 print_info "Searching for deployment templates..."
 
