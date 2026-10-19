@@ -452,9 +452,15 @@ install_dependencies() {
 
     print_warning "Skipping NVIDIA driver installation to preserve your existing setup"
     print_info "Your current NVIDIA drivers will be preserved"
+    print_info "Blocking nvidia driver packages from apt"
 
+    # Pin nvidia packages to prevent auto-installation
+    sudo apt-mark hold nvidia-driver-* nvidia-* 2>/dev/null || true
+    
     sudo apt-get update
-    sudo apt-get install -y \
+    
+    # Exclude nvidia packages from apt-get install
+    sudo apt-get install -y --ignore-missing \
         curl \
         git \
         wget \
@@ -463,7 +469,10 @@ install_dependencies() {
         build-essential \
         libcairo2-dev \
         pkg-config \
-        python3-dev
+        python3-dev \
+        --exclude=nvidia* \
+        --exclude=cuda* \
+        --exclude=libnvidia*
 
     print_success "System dependencies installed (NVIDIA drivers preserved)"
 }
@@ -539,6 +548,16 @@ deploy_vss_backend() {
     # Explicitly prevent driver installation
     export SKIP_DRIVER_INSTALL=true
     export NVIDIA_DRIVER_INSTALL=false
+    export DISABLE_NVIDIA_DRIVER_UPDATE=true
+    export NVIDIA_SILENT=true
+    export CUDA_DRIVER_AUTO_UPDATE=false
+    export ACCEPT_EULA=Y
+    
+    # Add nvidia-smi to PATH to prevent auto-update
+    export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+    
+    # Create a marker file to prevent driver updates
+    touch /tmp/.skip_nvidia_driver_update
     
     print_info "Setting VSS_APPS_DIR=$VSS_APPS_DIR"
     print_info "Setting VSS_DATA_DIR=$VSS_DATA_DIR"
@@ -695,6 +714,14 @@ main() {
     # Export global variables to prevent driver installation
     export SKIP_DRIVER_INSTALL=true
     export NVIDIA_DRIVER_INSTALL=false
+    export DISABLE_NVIDIA_DRIVER_UPDATE=true
+    export NVIDIA_SILENT=true
+    
+    # Add nvidia-smi to PATH to prevent auto-update
+    export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+    
+    # Create a marker file to prevent driver updates
+    touch /tmp/.skip_nvidia_driver_update
 
     # Detect if running from within vss-sports-ui directory
     CURRENT_DIR="$(pwd)"
