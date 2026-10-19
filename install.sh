@@ -155,13 +155,33 @@ configure_all_env_files() {
     
     # Set VSS_APPS_DIR and VSS_DATA_DIR
     sed -i "s|^VSS_APPS_DIR=.*|VSS_APPS_DIR=$INSTALL_DIR/video-search-and-summarization/deploy/docker|" "$SPORTS_UI_ENV"
-    sed -i "s|^VSS_DATA_DIR=.*|VSS_DATA_DIR=$INSTALL_DIR/vss-data|" "$SPORTS_UI_ENV"
+    sed -i "s|^VSS_DATA_DIR=.*|VSS_DATA_DIR=$INSTALL_DIR/video-search-and-summarization/data|" "$SPORTS_UI_ENV"
     
     print_success "Configured vss-sports-ui/.env"
 
-    # Configure dev-profile-base .env
-    PROFILE_ENV="$INSTALL_DIR/video-search-and-summarization/deploy/docker/developer-profiles/dev-profile-base/.env"
+    # Find the actual location of deployment templates
+    print_info "Searching for deployment templates..."
+    
+    VSS_DIR="$INSTALL_DIR/video-search-and-summarization"
+    PROFILE_DIR=""
+    
+    # Search for dev-profile-base directory
+    if [ -d "$VSS_DIR/deploy/docker/developer-profiles/dev-profile-base" ]; then
+        PROFILE_DIR="$VSS_DIR/deploy/docker/developer-profiles/dev-profile-base"
+    elif [ -d "$VSS_DIR/deploy/docker/developer-profiles" ]; then
+        PROFILE_DIR="$VSS_DIR/deploy/docker/developer-profiles"
+    else
+        print_error "Could not find developer-profiles directory"
+        print_info "Searched in: $VSS_DIR/deploy/docker"
+        exit 1
+    fi
+    
+    PROFILE_ENV="$PROFILE_DIR/.env"
+    OVERRIDES_ENV="$PROFILE_DIR/overrides.env"
+    
+    print_info "Found deployment templates in: $PROFILE_DIR"
 
+    # Configure dev-profile-base .env
     if [ -f "$PROFILE_ENV" ]; then
         cp "$PROFILE_ENV" "${PROFILE_ENV}.backup"
         
@@ -180,18 +200,16 @@ configure_all_env_files() {
         
         print_success "Configured dev-profile-base/.env"
     else
-        print_error "dev-profile-base/.env not found"
+        print_error "dev-profile-base/.env not found at $PROFILE_ENV"
         exit 1
     fi
 
     # Configure overrides.env
-    OVERRIDES_ENV="$INSTALL_DIR/video-search-and-summarization/deploy/docker/developer-profiles/dev-profile-base/overrides.env"
-
     if [ -f "$OVERRIDES_ENV" ]; then
         cp "$OVERRIDES_ENV" "${OVERRIDES_ENV}.backup"
         
         sed -i "s|VSS_APPS_DIR=\"/path/to/deploy/docker\"|VSS_APPS_DIR=\"$INSTALL_DIR/video-search-and-summarization/deploy/docker\"|" "$OVERRIDES_ENV"
-        sed -i "s|VSS_DATA_DIR=\"/path/to/vss-apps-data\"|VSS_DATA_DIR=\"$INSTALL_DIR/vss-data\"|" "$OVERRIDES_ENV"
+        sed -i "s|VSS_DATA_DIR=\"/path/to/vss-apps-data\"|VSS_DATA_DIR=\"$INSTALL_DIR/video-search-and-summarization/data\"|" "$OVERRIDES_ENV"
         sed -i "s|HOST_IP='<HOST_IP>'|HOST_IP='$HOST_IP'|" "$OVERRIDES_ENV"
         sed -i "s|EXTERNAL_IP=\${HOST_IP}|EXTERNAL_IP=$HOST_IP|" "$OVERRIDES_ENV"
         sed -i "s|NGC_CLI_API_KEY=\${NGC_CLI_API_KEY:-}|NGC_CLI_API_KEY=$NGC_API_KEY|" "$OVERRIDES_ENV"
@@ -200,7 +218,7 @@ configure_all_env_files() {
         
         print_success "Configured overrides.env"
     else
-        print_error "overrides.env not found"
+        print_error "overrides.env not found at $OVERRIDES_ENV"
         exit 1
     fi
 
@@ -210,7 +228,7 @@ configure_all_env_files() {
     SERVICES_SOURCE_DIR="$INSTALL_DIR/video-search-and-summarization/deploy/docker/services"
     SERVICES_DEST_DIR="$INSTALL_DIR/video-search-and-summarization/deploy/docker/services"
 
-    # List of env files to copy
+    # List of env files to configure
     ENV_FILES=(
         "agent/agent.env"
         "alert/alert.env"
@@ -228,9 +246,12 @@ configure_all_env_files() {
         dest_file="$SERVICES_DEST_DIR/$env_file"
 
         if [ -f "$source_file" ]; then
-            mkdir -p "$(dirname "$dest_file")"
-            cp "$source_file" "$dest_file"
-            print_success "Copied $env_file"
+            # Add VSS_APPS_DIR if not already present
+            if ! grep -q "^VSS_APPS_DIR=" "$dest_file"; then
+                echo "VSS_APPS_DIR=$INSTALL_DIR/video-search-and-summarization/deploy/docker" >> "$dest_file"
+            fi
+            
+            print_success "Configured $env_file"
         else
             print_warning "Skipping $env_file (not found at $source_file)"
         fi

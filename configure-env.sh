@@ -50,7 +50,32 @@ fi
 VSS_DIR="$INSTALL_DIR/video-search-and-summarization"
 SERVICES_DIR="$VSS_DIR/deploy/docker/services"
 VSS_APPS_DIR="$VSS_DIR/deploy/docker"
-VSS_DATA_DIR="$INSTALL_DIR/vss-data"
+VSS_DATA_DIR="$VSS_DIR/data"
+
+# Find the actual location of deployment templates
+print_info "Searching for deployment templates..."
+
+PROFILE_DIR=""
+OVERRIDES_ENV=""
+CONTAINERS_ENV=""
+
+# Search for dev-profile-base directory
+if [ -d "$VSS_DIR/deploy/docker/developer-profiles/dev-profile-base" ]; then
+    PROFILE_DIR="$VSS_DIR/deploy/docker/developer-profiles/dev-profile-base"
+elif [ -d "$VSS_DIR/deploy/docker/developer-profiles" ]; then
+    PROFILE_DIR="$VSS_DIR/deploy/docker/developer-profiles"
+else
+    print_error "Could not find developer-profiles directory"
+    print_info "Searched in: $VSS_DIR/deploy/docker"
+    exit 1
+fi
+
+# Set paths based on found directory
+PROFILE_ENV="$PROFILE_DIR/.env"
+OVERRIDES_ENV="$PROFILE_DIR/overrides.env"
+CONTAINERS_ENV="$VSS_DIR/deploy/docker/containers.env"
+
+print_info "Found deployment templates in: $PROFILE_DIR"
 
 # Get user input
 print_header "VSS Environment Configuration"
