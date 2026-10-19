@@ -194,10 +194,23 @@ if [ -f "$PROFILE_ENV" ]; then
     VLM_PORT=30082
     VST_PORT=30888
     
-    sed -i "s/^LLM_BASE_URL=.*/LLM_BASE_URL=http:\/\/\${HOST_IP}:${LLM_PORT}/" "$PROFILE_ENV"
-    sed -i "s/^VLM_BASE_URL=.*/VLM_BASE_URL=http:\/\/\${HOST_IP}:${VLM_PORT}/" "$PROFILE_ENV"
-    sed -i "s/^VST_INTERNAL_URL=.*/VST_INTERNAL_URL=http:\/\/\${HOST_IP}:${VST_PORT}/" "$PROFILE_ENV"
-    sed -i "s/^VST_EXTERNAL_URL=.*/VST_EXTERNAL_URL=http:\/\/\${HOST_IP}:${VST_PORT}/" "$PROFILE_ENV"
+    sed -i "s/^LLM_BASE_URL=.*/LLM_BASE_URL=http:\/\/$HOST_IP:$LLM_PORT/" "$PROFILE_ENV"
+    sed -i "s/^VLM_BASE_URL=.*/VLM_BASE_URL=http:\/\/$HOST_IP:$VLM_PORT/" "$PROFILE_ENV"
+    sed -i "s/^VST_INTERNAL_URL=.*/VST_INTERNAL_URL=http:\/\/$HOST_IP:$VST_PORT}/" "$PROFILE_ENV"
+    sed -i "s/^VST_EXTERNAL_URL=.*/VST_EXTERNAL_URL=http:\/\/$HOST_IP:$VST_PORT}/" "$PROFILE_ENV"
+    
+    # Ensure VSS_APPS_DIR and VSS_DATA_DIR are set
+    if ! grep -q "^VSS_APPS_DIR=" "$PROFILE_ENV"; then
+        echo "VSS_APPS_DIR=$VSS_APPS_DIR" >> "$PROFILE_ENV"
+    else
+        sed -i "s|^VSS_APPS_DIR=.*|VSS_APPS_DIR=$VSS_APPS_DIR|" "$PROFILE_ENV"
+    fi
+    
+    if ! grep -q "^VSS_DATA_DIR=" "$PROFILE_ENV"; then
+        echo "VSS_DATA_DIR=$VSS_DATA_DIR" >> "$PROFILE_ENV"
+    else
+        sed -i "s|^VSS_DATA_DIR=.*|VSS_DATA_DIR=$VSS_DATA_DIR|" "$PROFILE_ENV"
+    fi
     
     print_success "Configured dev-profile-base/.env"
 else
@@ -205,13 +218,14 @@ else
     print_info "Creating .env file from scratch..."
     
     # Create the .env file with required variables
+    # Note: Use literal values so docker-compose can read them directly
     cat > "$PROFILE_ENV" << EOF
 HOST_IP=$HOST_IP
 NGC_API_KEY=$NGC_API_KEY
-LLM_BASE_URL=http://\${HOST_IP}:30081
-VLM_BASE_URL=http://\${HOST_IP}:30082
-VST_INTERNAL_URL=http://\${HOST_IP}:30888
-VST_EXTERNAL_URL=http://\${HOST_IP}:30888
+LLM_BASE_URL=http://$HOST_IP:30081
+VLM_BASE_URL=http://$HOST_IP:30082
+VST_INTERNAL_URL=http://$HOST_IP:30888
+VST_EXTERNAL_URL=http://$HOST_IP:30888
 VSS_APPS_DIR=$VSS_APPS_DIR
 VSS_DATA_DIR=$VSS_DATA_DIR
 EOF
