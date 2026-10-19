@@ -186,48 +186,40 @@ print_header "Configuring dev-profile-base/.env"
 if [ -f "$PROFILE_ENV" ]; then
     cp "$PROFILE_ENV" "${PROFILE_ENV}.backup"
     
-    sed -i "s/^HOST_IP=.*/HOST_IP=$HOST_IP/" "$PROFILE_ENV"
-    sed -i "s/^NGC_API_KEY=.*/NGC_API_KEY=$NGC_API_KEY/" "$PROFILE_ENV"
-    
-    # Set derived URLs
-    LLM_PORT=30081
-    VLM_PORT=30082
-    VST_PORT=30888
-    
-    sed -i "s/^LLM_BASE_URL=.*/LLM_BASE_URL=http:\/\/$HOST_IP:$LLM_PORT/" "$PROFILE_ENV"
-    sed -i "s/^VLM_BASE_URL=.*/VLM_BASE_URL=http:\/\/$HOST_IP:$VLM_PORT/" "$PROFILE_ENV"
-    sed -i "s/^VST_INTERNAL_URL=.*/VST_INTERNAL_URL=http:\/\/$HOST_IP:$VST_PORT}/" "$PROFILE_ENV"
-    sed -i "s/^VST_EXTERNAL_URL=.*/VST_EXTERNAL_URL=http:\/\/$HOST_IP:$VST_PORT}/" "$PROFILE_ENV"
-    
-    # Ensure VSS_APPS_DIR and VSS_DATA_DIR are set
-    if ! grep -q "^VSS_APPS_DIR=" "$PROFILE_ENV"; then
-        echo "VSS_APPS_DIR=$VSS_APPS_DIR" >> "$PROFILE_ENV"
-    else
-        sed -i "s|^VSS_APPS_DIR=.*|VSS_APPS_DIR=$VSS_APPS_DIR|" "$PROFILE_ENV"
-    fi
-    
-    if ! grep -q "^VSS_DATA_DIR=" "$PROFILE_ENV"; then
-        echo "VSS_DATA_DIR=$VSS_DATA_DIR" >> "$PROFILE_ENV"
-    else
-        sed -i "s|^VSS_DATA_DIR=.*|VSS_DATA_DIR=$VSS_DATA_DIR|" "$PROFILE_ENV"
-    fi
-    
-    print_success "Configured dev-profile-base/.env"
+    # The .env file has static defaults, no user-specific variables needed
+    print_success "Configured dev-profile-base/.env (using static defaults)"
 else
     print_warning ".env file not found at $PROFILE_ENV"
     print_info "Creating .env file from scratch..."
     
-    # Create the .env file with required variables
+    # Create the .env file with required variables from official VSS Blueprint
     # Note: Use literal values so docker-compose can read them directly
-    cat > "$PROFILE_ENV" << EOF
-HOST_IP=$HOST_IP
-NGC_API_KEY=$NGC_API_KEY
-LLM_BASE_URL=http://$HOST_IP:30081
-VLM_BASE_URL=http://$HOST_IP:30082
-VST_INTERNAL_URL=http://$HOST_IP:30888
-VST_EXTERNAL_URL=http://$HOST_IP:30888
-VSS_APPS_DIR=$VSS_APPS_DIR
-VSS_DATA_DIR=$VSS_DATA_DIR
+    cat > "$PROFILE_ENV" << 'EOF'
+MODE=2d
+RTVI_VLM_MAX_MODEL_LEN=''
+BP_PROFILE=bp_developer_base
+RESERVED_DEVICE_IDS=''
+FIXED_SHARED_DEVICE_IDS=''
+ELASTICSEARCH_ILM_MIN_AGE=4h
+STREAM_TYPE=kafka
+VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml
+ENABLE_AUDIO=false
+NEXT_PUBLIC_APP_SUBTITLE="Vision (Base)"
+NEXT_PUBLIC_SIDEBAR_CHAT_WORKFLOW="VSS Agent"
+NEXT_PUBLIC_SIDEBAR_CHAT_CHAT_API_CUSTOM_AGENT_PARAMS_JSON={"params":[{"name":"llm_reasoning","label":"LLM Reasoning","type":"boolean","default-value":true,"changeable":true,"tooltip-info":"Improves tool-call planning and QA accuracy; adds latency on multi-turn conversations. Turn off for fastest multi-turn replies."},{"name":"vlm_reasoning","label":"VLM Reasoning","type":"boolean","default-value":false,"changeable":true,"tooltip-info":""}]}
+NEXT_PUBLIC_SIDEBAR_CHAT_CHAT_UPLOAD_FILE_ENABLE=true
+NEXT_PUBLIC_SIDEBAR_CHAT_WEB_SOCKET_DEFAULT_ON=true
+NEXT_PUBLIC_ENABLE_ALERTS_TAB=false
+NEXT_PUBLIC_ENABLE_SEARCH_TAB=false
+NEXT_PUBLIC_ENABLE_DASHBOARD_TAB=false
+NEXT_PUBLIC_ENABLE_VIDEO_MANAGEMENT_TAB=true
+NEXT_PUBLIC_VIDEO_MANAGEMENT_VIDEO_UPLOAD_ENABLE=true
+NEXT_PUBLIC_VIDEO_MANAGEMENT_TAB_ADD_RTSP_ENABLE=false
+EVAL_DIR=deploy/docker/developer-profiles/dev-profile-base/eval/
+DATASET_DIR=agent_eval/dataset/vss-devx-base
+DATASET_FILE_NAME=dataset_single-turn.json
+REPORT_REFERENCE_BASE_DIR=/vss-agent/agent_eval/dataset/vss-devx-base/gt
+EVAL_OUTPUT_DIR=agent_eval/results
 EOF
     
     print_success "Created .env file at $PROFILE_ENV"
@@ -240,6 +232,7 @@ print_header "Configuring overrides.env"
 if [ -f "$OVERRIDES_ENV" ]; then
     cp "$OVERRIDES_ENV" "${OVERRIDES_ENV}.backup"
     
+    # Update the key user-specific variables
     sed -i "s|VSS_APPS_DIR=\"/path/to/deploy/docker\"|VSS_APPS_DIR=\"$VSS_APPS_DIR\"|" "$OVERRIDES_ENV"
     sed -i "s|VSS_DATA_DIR=\"/path/to/vss-apps-data\"|VSS_DATA_DIR=\"$VSS_DATA_DIR\"|" "$OVERRIDES_ENV"
     sed -i "s|HOST_IP='<HOST_IP>'|HOST_IP='$HOST_IP'|" "$OVERRIDES_ENV"
@@ -247,35 +240,74 @@ if [ -f "$OVERRIDES_ENV" ]; then
     sed -i "s|NGC_CLI_API_KEY=\${NGC_CLI_API_KEY:-}|NGC_CLI_API_KEY=$NGC_API_KEY|" "$OVERRIDES_ENV"
     sed -i "s|NVIDIA_API_KEY=\${NVIDIA_API_KEY:-}|NVIDIA_API_KEY=$NGC_API_KEY|" "$OVERRIDES_ENV"
     sed -i "s|HARDWARE_PROFILE=H100|HARDWARE_PROFILE=RTXPRO6000BW|" "$OVERRIDES_ENV"
-    
-    # Set LLM and VLM modes
-    sed -i "s|LLM_MODE=local_shared|LLM_MODE=local_shared|" "$OVERRIDES_ENV"
-    sed -i "s|VLM_MODE=local_shared|VLM_MODE=local_shared|" "$OVERRIDES_ENV"
-    
-    # Set device IDs
-    sed -i "s|LLM_DEVICE_ID='0'|LLM_DEVICE_ID='0'|" "$OVERRIDES_ENV"
-    sed -i "s|VLM_DEVICE_ID='0'|VLM_DEVICE_ID='0'|" "$OVERRIDES_ENV"
-    sed -i "s|RT_VLM_DEVICE_ID='0'|RT_VLM_DEVICE_ID='0'|" "$OVERRIDES_ENV"
+    sed -i "s|VSS_PUBLIC_HOST=\${EXTERNAL_IP}|VSS_PUBLIC_HOST=$HOST_IP|" "$OVERRIDES_ENV"
+    sed -i "s|VST_EXTERNAL_URL=\${VSS_PUBLIC_HTTP_PROTOCOL}://\${VSS_PUBLIC_HOST}:\${VSS_PUBLIC_PORT}|VST_EXTERNAL_URL=http://$HOST_IP:7777|" "$OVERRIDES_ENV"
+    sed -i "s|VST_BASE_URL=\${VST_EXTERNAL_URL}|VST_BASE_URL=http://$HOST_IP:7777|" "$OVERRIDES_ENV"
+    sed -i "s|VSS_AGENT_REPORTS_BASE_URL=\${VSS_PUBLIC_HTTP_PROTOCOL}://\${VSS_PUBLIC_HOST}:\${VSS_PUBLIC_PORT}/static/|VSS_AGENT_REPORTS_BASE_URL=http://$HOST_IP:7777/static/|" "$OVERRIDES_ENV"
+    sed -i "s|VSS_AGENT_EXTERNAL_URL=\${VSS_PUBLIC_HTTP_PROTOCOL}://\${VSS_PUBLIC_HOST}:\${VSS_PUBLIC_PORT}|VSS_AGENT_EXTERNAL_URL=http://$HOST_IP:7777|" "$OVERRIDES_ENV"
     
     print_success "Configured overrides.env"
 else
     print_warning "overrides.env not found at $OVERRIDES_ENV"
     print_info "Creating overrides.env from scratch..."
     
-    # Create the overrides.env file with required variables
+    # Create the overrides.env file with required variables from official VSS Blueprint
     cat > "$OVERRIDES_ENV" << EOF
+COMPOSE_PROJECT_NAME=vss
+HARDWARE_PROFILE=RTXPRO6000BW
+LLM_DEVICE_ID='0'
+VLM_DEVICE_ID='0'
+RT_VLM_DEVICE_ID='0'
+LLM_MODE=local_shared
+VLM_MODE=local_shared
+LLM_NAME=nvidia/nemotron-3.5-lightning-30b-a3b
+LLM_NAME_SLUG=nemotron-3.5-lightning-30b-a3b
+LLM_ENV_FILE=''
+LLM_BASE_URL=http://vss-llm-nim:8000
+LLM_MODEL_TYPE=nim
+VLM_NAME=nim_nvidia_cosmos3-nano-reasoner_bf16-final
+VLM_NAME_SLUG=none
+VLM_ENV_FILE=''
+VLM_BASE_URL=http://rtvi-vlm:8000
+VLM_MODEL_TYPE=rtvi
+VLM_PORT=8018
 VSS_APPS_DIR=$VSS_APPS_DIR
 VSS_DATA_DIR=$VSS_DATA_DIR
 HOST_IP='$HOST_IP'
 EXTERNAL_IP=$HOST_IP
+HAPROXY_PORT=7777
+VSS_PUBLIC_HTTP_PROTOCOL=http
+VSS_PUBLIC_WS_PROTOCOL=ws
+VSS_PUBLIC_HOST=$HOST_IP
+HAPROXY_HOST_PORT=7777
+VSS_PUBLIC_PORT=7777
+VSS_UI_HOST_PORT=3000
+VSS_AGENT_HOST_PORT=8000
+RTVI_VLM_PORT=8018
+PHOENIX_HOST_PORT=6006
+REDIS_HOST_PORT=6379
+VST_INGRESS_HOST_PORT=30888
+SENSOR_HTTP_HOST_PORT=30000
+STREAM_PROCESSOR_HTTP_HOST_PORT=30001
+RTSP_SERVER_HOST_PORT=30554
+RTSP_SERVER_HOST_PORT_END=30564
+VST_CONFIG_PATH=$VSS_APPS_DIR/services/vios/configs
+VST_EXTERNAL_URL=http://$HOST_IP:7777
+VST_BASE_URL=http://$HOST_IP:7777
+VSS_AGENT_REPORTS_BASE_URL=http://$HOST_IP:7777/static/
+VSS_AGENT_EXTERNAL_URL=http://$HOST_IP:7777
+VSS_AGENT_ADAPTER_ENABLED=false
+HITL_ENABLED=true
 NGC_CLI_API_KEY=$NGC_API_KEY
 NVIDIA_API_KEY=$NGC_API_KEY
-HARDWARE_PROFILE=RTXPRO6000BW
-LLM_MODE=local_shared
-VLM_MODE=local_shared
-LLM_DEVICE_ID='0'
-VLM_DEVICE_ID='0'
-RT_VLM_DEVICE_ID='0'
+OPENAI_API_KEY=
+HF_TOKEN=
+EVAL_LLM_JUDGE_NAME=nvidia/nemotron-3.5-lightning-30b-a3b
+EVAL_LLM_JUDGE_BASE_URL=http://vss-llm-nim:8000
+RTVI_VLM_ENDPOINT=''
+RTVI_VLM_MODEL_TO_USE=cosmos-reason3
+RTVI_VLLM_GPU_MEMORY_UTILIZATION=''
+RTVI_VLLM_MM_PROCESSOR_CACHE_GB=0
 EOF
     
     print_success "Created overrides.env at $OVERRIDES_ENV"
