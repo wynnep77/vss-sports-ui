@@ -459,8 +459,8 @@ install_dependencies() {
     
     sudo apt-get update
     
-    # Exclude nvidia packages from apt-get install
-    sudo apt-get install -y --ignore-missing \
+    # Install dependencies without nvidia packages
+    sudo apt-get install -y \
         curl \
         git \
         wget \
@@ -469,10 +469,7 @@ install_dependencies() {
         build-essential \
         libcairo2-dev \
         pkg-config \
-        python3-dev \
-        --exclude=nvidia* \
-        --exclude=cuda* \
-        --exclude=libnvidia*
+        python3-dev
 
     print_success "System dependencies installed (NVIDIA drivers preserved)"
 }
