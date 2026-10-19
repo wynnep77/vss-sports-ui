@@ -90,6 +90,7 @@ check_gpu() {
     else
         print_error "NVIDIA driver not found. Please install NVIDIA drivers first."
         print_info "Visit: https://www.nvidia.com/Download/index.aspx"
+        print_info "The script will NOT install or modify NVIDIA drivers to preserve your existing setup."
         return 1
     fi
 }
@@ -127,6 +128,9 @@ install_docker() {
 install_dependencies() {
     print_header "Installing System Dependencies"
 
+    print_warning "Skipping NVIDIA driver installation to preserve your existing setup"
+    print_info "Your current NVIDIA drivers will be preserved"
+
     sudo apt-get update
     sudo apt-get install -y \
         curl \
@@ -139,7 +143,7 @@ install_dependencies() {
         pkg-config \
         python3-dev
 
-    print_success "System dependencies installed"
+    print_success "System dependencies installed (NVIDIA drivers preserved)"
 }
 
 prompt_api_keys() {
@@ -457,6 +461,11 @@ print_summary() {
 main() {
     print_header "VSS Sports Analysis - Installation Script"
 
+    print_warning "IMPORTANT: This script will NOT install or modify NVIDIA drivers"
+    print_info "Your existing NVIDIA drivers will be preserved"
+    print_info "If you need to install drivers, do so manually before running this script"
+    echo ""
+
     # Detect if running from within vss-sports-ui directory
     CURRENT_DIR="$(pwd)"
     if [ "$(basename $CURRENT_DIR)" = "vss-sports-ui" ]; then
@@ -490,6 +499,7 @@ main() {
     echo "  - RTX PRO 6000 GPU (or compatible)"
     echo "  - NVIDIA NGC API key"
     echo "  - Internet connection"
+    echo "  - NVIDIA drivers (already installed - will NOT be modified)"
     echo ""
 
     read -p "Continue? (y/n): " -n 1 -r
