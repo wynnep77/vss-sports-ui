@@ -48,26 +48,32 @@ if [ "$(basename $CURRENT_DIR)" = "vss-sports-ui" ]; then
 fi
 
 VSS_DIR="$INSTALL_DIR/video-search-and-summarization"
-SERVICES_DIR="$VSS_DIR/deploy/docker/services"
-VSS_APPS_DIR="$VSS_DIR/deploy/docker"
-VSS_DATA_DIR="$VSS_DIR/data"
 
 # Find the actual location of deployment templates
 print_info "Searching for deployment templates..."
 
-PROFILE_DIR=""
-OVERRIDES_ENV=""
-CONTAINERS_ENV=""
+# Search for developer-profiles directory anywhere in the VSS directory
+DEV_PROFILES_DIR=$(find "$VSS_DIR" -type d -name "developer-profiles" 2>/dev/null | head -1)
 
-# Search for dev-profile-base directory
-if [ -d "$VSS_DIR/deploy/docker/developer-profiles/dev-profile-base" ]; then
-    PROFILE_DIR="$VSS_DIR/deploy/docker/developer-profiles/dev-profile-base"
-elif [ -d "$VSS_DIR/deploy/docker/developer-profiles" ]; then
-    PROFILE_DIR="$VSS_DIR/deploy/docker/developer-profiles"
-else
+if [ -z "$DEV_PROFILES_DIR" ]; then
     print_error "Could not find developer-profiles directory"
-    print_info "Searched in: $VSS_DIR/deploy/docker"
+    print_info "Searched in: $VSS_DIR"
+    print_info "Please ensure the VSS Blueprint is properly cloned"
     exit 1
+fi
+
+print_info "Found developer-profiles at: $DEV_PROFILES_DIR"
+
+# Set VSS_APPS_DIR to the directory containing developer-profiles
+VSS_APPS_DIR=$(dirname "$DEV_PROFILES_DIR")
+print_info "Setting VSS_APPS_DIR to: $VSS_APPS_DIR"
+
+# Find dev-profile-base directory
+PROFILE_DIR=""
+if [ -d "$DEV_PROFILES_DIR/dev-profile-base" ]; then
+    PROFILE_DIR="$DEV_PROFILES_DIR/dev-profile-base"
+else
+    PROFILE_DIR="$DEV_PROFILES_DIR"
 fi
 
 # Set paths based on found directory
@@ -75,7 +81,24 @@ PROFILE_ENV="$PROFILE_DIR/.env"
 OVERRIDES_ENV="$PROFILE_DIR/overrides.env"
 CONTAINERS_ENV="$VSS_DIR/deploy/docker/containers.env"
 
-print_info "Found deployment templates in: $PROFILE_DIR"
+# Find services directory
+SERVICES_DIR=$(find "$VSS_DIR" -type d -name "services" 2>/dev/null | head -1)
+
+if [ -z "$SERVICES_DIR" ]; then
+    print_warning "Could not find services directory"
+else
+    print_info "Found services directory at: $SERVICES_DIR"
+fi
+
+# Set data directory
+VSS_DATA_DIR="$VSS_DIR/data"
+
+print_info "Configuration paths:"
+print_info "  VSS_DIR: $VSS_DIR"
+print_info "  VSS_APPS_DIR: $VSS_APPS_DIR"
+print_info "  VSS_DATA_DIR: $VSS_DATA_DIR"
+print_info "  PROFILE_DIR: $PROFILE_DIR"
+print_info "  SERVICES_DIR: $SERVICES_DIR"
 
 # Get user input
 print_header "VSS Environment Configuration"
@@ -167,40 +190,44 @@ if [ -f "$OVERRIDES_ENV" ]; then
     
     print_success "Configured overrides.env"
 else
-    print_error "overrides.env not found"
+    print_error "overrides.env not found at $OVERRIDES_ENV"
+    exit 1
 fi
 
 # Copy and configure service .env files
 print_header "Configuring service .env files"
 
-# List of env files to configure (using a simple array instead of associative array)
-ENV_FILES=(
-    "agent/agent.env"
-    "alert/alert.env"
-    "rtvi/rtvi.env"
-    "vios/vst.env"
-    "infra/infra.env"
-    "nim/nim.env"
-    "ui/ui.env"
-    "nvstreamer/.env"
-    "video-summarization/lvs.env"
-)
+if [ -z "$SERVICES_DIR" ]; then
+    print_warning "Services directory not found, skipping service .env configuration"
+else
+    # List of env files to configure (using a simple array instead of associative array)
+    ENV_FILES=(
+        "agent/agent.env"
+        "alert/alert.env"
+        "rtvi/rtvi.env"
+        "vios/vst.env"
+        "infra/infra.env"
+        "nim/nim.env"
+        "ui/ui.env"
+        "nvstreamer/.env"
+        "video-summarization/lvs.env"
+    )
 
-for env_file in "${ENV_FILES[@]}"; do
-    source_file="$SERVICES_DIR/$env_file"
-    dest_file="$SERVICES_DIR/$env_file"
+    for env_file in "${ENV_FILES[@]}"; do
+        source_file="$SERVICES_DIR/$env_file"
 
-    if [ -f "$source_file" ]; then
-        # Add VSS_APPS_DIR if not already present
-        if ! grep -q "^VSS_APPS_DIR=" "$dest_file"; then
-            echo "VSS_APPS_DIR=$VSS_APPS_DIR" >> "$dest_file"
+        if [ -f "$source_file" ]; then
+            # Add VSS_APPS_DIR if not already present
+            if ! grep -q "^VSS_APPS_DIR=" "$source_file"; then
+                echo "VSS_APPS_DIR=$VSS_APPS_DIR" >> "$source_file"
+            fi
+            
+            print_success "Configured $env_file"
+        else
+            print_warning "Skipping $env_file (not found)"
         fi
-        
-        print_success "Configured $env_file"
-    else
-        print_warning "Skipping $env_file (not found)"
-    fi
-done
+    done
+fi
 
 # Create containers.env if it doesn't exist
 print_header "Configuring containers.env"
@@ -218,8 +245,12 @@ print_header "Configuration Complete!"
 echo -e "${GREEN}Summary:${NC}"
 echo -e "  Host IP: $HOST_IP"
 echo -e "  VSS Directory: $VSS_DIR"
-echo -e "  VSS Apps Directory: $VSS_APPS_DIR"
+echo -e "  VSS Apps Directory: $VSS_APPS_DIR (contains developer-profiles)"
 echo -e "  VSS Data Directory: $VSS_DATA_DIR"
+echo -e "  Profile Directory: $PROFILE_DIR"
+if [ -n "$SERVICES_DIR" ]; then
+    echo -e "  Services Directory: $SERVICES_DIR"
+fi
 echo ""
 echo -e "${BLUE}Next steps:${NC}"
 echo "  1. Review the configured .env files"
