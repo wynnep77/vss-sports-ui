@@ -22,6 +22,12 @@ FRONTEND_REPO="https://github.com/wynnep77/vss-sports-ui.git"
 NGC_API_KEY=""
 HOST_IP=""
 
+# Global variables for discovered paths (will be set during configuration)
+VSS_DIR=""
+VSS_APPS_DIR=""
+PROFILE_ENV=""
+VSS_DATA_DIR=""
+
 ################################################################################
 # Helper Functions
 ################################################################################
@@ -187,15 +193,6 @@ configure_all_env_files() {
         exit 1
     fi
     
-    if [ -z "$DEV_PROFILES_DIR" ]; then
-        print_error "Could not find developer-profiles directory"
-        print_info "Searched in: $VSS_DIR"
-        print_info "Please ensure the VSS Blueprint is properly cloned"
-        exit 1
-    fi
-    
-    print_info "Found developer-profiles at: $DEV_PROFILES_DIR"
-    
     # Set VSS_APPS_DIR to the directory containing developer-profiles
     VSS_APPS_DIR=$(dirname "$DEV_PROFILES_DIR")
     print_info "Setting VSS_APPS_DIR to: $VSS_APPS_DIR"
@@ -212,6 +209,7 @@ configure_all_env_files() {
     
     PROFILE_ENV="$PROFILE_DIR/.env"
     OVERRIDES_ENV="$PROFILE_DIR/overrides.env"
+    VSS_DATA_DIR="$VSS_DIR/data"
     
     print_info "Profile directory: $PROFILE_DIR"
     print_info "Expected .env location: $PROFILE_ENV"
@@ -353,6 +351,11 @@ EOF
         cp "$SPORTS_UI_ENV" "$PROFILE_ENV"
         print_success "Copied .env to VSS Blueprint location"
     fi
+    
+    # Export VSS_APPS_DIR and PROFILE_ENV for use in other functions
+    export VSS_APPS_DIR
+    export PROFILE_ENV
+    export VSS_DIR
 }
 
 ################################################################################
@@ -461,15 +464,24 @@ deploy_vss_backend() {
 
     cd "$INSTALL_DIR/video-search-and-summarization/deploy/docker"
 
-    # Export VSS_APPS_DIR for Docker Compose
-    export VSS_APPS_DIR="$INSTALL_DIR/video-search-and-summarization/services/ui"
+    # Export VSS_APPS_DIR for Docker Compose (use the dynamically discovered path)
+    export VSS_APPS_DIR="$VSS_APPS_DIR"
     print_info "Setting VSS_APPS_DIR=$VSS_APPS_DIR"
 
     print_info "Starting VSS services with Docker Compose..."
     print_warning "This may take 10-20 minutes on first run (downloading Docker images)"
 
+    # Verify the .env file exists before starting
+    if [ ! -f "$PROFILE_ENV" ]; then
+        print_error ".env file not found at $PROFILE_ENV"
+        print_info "This should have been created during configuration"
+        exit 1
+    fi
+
+    print_info "Using .env file: $PROFILE_ENV"
+
     # Start the services
-    docker-compose -f compose.yml --env-file ../developer-profiles/dev-profile-base/.env up -d
+    docker-compose -f compose.yml --env-file "$PROFILE_ENV" up -d
 
     print_success "VSS backend services started"
     print_info "Waiting for services to be ready..."
