@@ -160,8 +160,13 @@ configure_all_env_files() {
     
     VSS_DIR="$INSTALL_DIR/video-search-and-summarization"
     
-    # Search for developer-profiles directory anywhere in the VSS directory
-    DEV_PROFILES_DIR=$(find "$VSS_DIR" -type d -name "developer-profiles" 2>/dev/null | head -1)
+    # Search for developer-profiles directory, preferring docker over helm
+    DEV_PROFILES_DIR=$(find "$VSS_DIR/deploy/docker" -type d -name "developer-profiles" 2>/dev/null | head -1)
+    
+    # If not found in docker, search anywhere but exclude helm
+    if [ -z "$DEV_PROFILES_DIR" ]; then
+        DEV_PROFILES_DIR=$(find "$VSS_DIR" -type d -name "developer-profiles" 2>/dev/null | grep -v "/helm/" | head -1)
+    fi
     
     if [ -z "$DEV_PROFILES_DIR" ]; then
         print_error "Could not find developer-profiles directory"
@@ -239,8 +244,13 @@ configure_all_env_files() {
     # Configure service .env files
     print_info "Configuring service .env files..."
 
-    # Find services directory
-    SERVICES_DIR=$(find "$VSS_DIR" -type d -name "services" 2>/dev/null | head -1)
+    # Find services directory, preferring docker over helm
+    SERVICES_DIR=$(find "$VSS_DIR/deploy/docker" -type d -name "services" 2>/dev/null | head -1)
+    
+    # If not found in docker, search anywhere but exclude helm
+    if [ -z "$SERVICES_DIR" ]; then
+        SERVICES_DIR=$(find "$VSS_DIR" -type d -name "services" 2>/dev/null | grep -v "/helm/" | head -1)
+    fi
     
     if [ -z "$SERVICES_DIR" ]; then
         print_warning "Could not find services directory, skipping service .env configuration"

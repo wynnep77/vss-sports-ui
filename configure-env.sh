@@ -63,8 +63,13 @@ fi
 # Find the actual location of deployment templates
 print_info "Searching for deployment templates..."
 
-# Search for developer-profiles directory anywhere in the VSS directory
-DEV_PROFILES_DIR=$(find "$VSS_DIR" -type d -name "developer-profiles" 2>/dev/null | head -1)
+# Search for developer-profiles directory, preferring docker over helm
+DEV_PROFILES_DIR=$(find "$VSS_DIR/deploy/docker" -type d -name "developer-profiles" 2>/dev/null | head -1)
+
+# If not found in docker, search anywhere but exclude helm
+if [ -z "$DEV_PROFILES_DIR" ]; then
+    DEV_PROFILES_DIR=$(find "$VSS_DIR" -type d -name "developer-profiles" 2>/dev/null | grep -v "/helm/" | head -1)
+fi
 
 if [ -z "$DEV_PROFILES_DIR" ]; then
     print_error "Could not find developer-profiles directory"
@@ -92,8 +97,13 @@ PROFILE_ENV="$PROFILE_DIR/.env"
 OVERRIDES_ENV="$PROFILE_DIR/overrides.env"
 CONTAINERS_ENV="$VSS_DIR/deploy/docker/containers.env"
 
-# Find services directory
-SERVICES_DIR=$(find "$VSS_DIR" -type d -name "services" 2>/dev/null | head -1)
+# Find services directory, preferring docker over helm
+SERVICES_DIR=$(find "$VSS_DIR/deploy/docker" -type d -name "services" 2>/dev/null | head -1)
+
+# If not found in docker, search anywhere but exclude helm
+if [ -z "$SERVICES_DIR" ]; then
+    SERVICES_DIR=$(find "$VSS_DIR" -type d -name "services" 2>/dev/null | grep -v "/helm/" | head -1)
+fi
 
 if [ -z "$SERVICES_DIR" ]; then
     print_warning "Could not find services directory"
