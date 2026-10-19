@@ -154,7 +154,7 @@ configure_all_env_files() {
     sed -i "s/^NGC_API_KEY=.*/NGC_API_KEY=$NGC_API_KEY/" "$SPORTS_UI_ENV"
     
     # Set VSS_APPS_DIR and VSS_DATA_DIR
-    sed -i "s|^VSS_APPS_DIR=.*|VSS_APPS_DIR=$INSTALL_DIR/video-search-and-summarization/services/ui|" "$SPORTS_UI_ENV"
+    sed -i "s|^VSS_APPS_DIR=.*|VSS_APPS_DIR=$INSTALL_DIR/video-search-and-summarization/deploy/docker|" "$SPORTS_UI_ENV"
     sed -i "s|^VSS_DATA_DIR=.*|VSS_DATA_DIR=$INSTALL_DIR/vss-data|" "$SPORTS_UI_ENV"
     
     print_success "Configured vss-sports-ui/.env"
@@ -190,7 +190,7 @@ configure_all_env_files() {
     if [ -f "$OVERRIDES_ENV" ]; then
         cp "$OVERRIDES_ENV" "${OVERRIDES_ENV}.backup"
         
-        sed -i "s|VSS_APPS_DIR=\"/path/to/deploy/docker\"|VSS_APPS_DIR=\"$INSTALL_DIR/video-search-and-summarization\"|" "$OVERRIDES_ENV"
+        sed -i "s|VSS_APPS_DIR=\"/path/to/deploy/docker\"|VSS_APPS_DIR=\"$INSTALL_DIR/video-search-and-summarization/deploy/docker\"|" "$OVERRIDES_ENV"
         sed -i "s|VSS_DATA_DIR=\"/path/to/vss-apps-data\"|VSS_DATA_DIR=\"$INSTALL_DIR/vss-data\"|" "$OVERRIDES_ENV"
         sed -i "s|HOST_IP='<HOST_IP>'|HOST_IP='$HOST_IP'|" "$OVERRIDES_ENV"
         sed -i "s|EXTERNAL_IP=\${HOST_IP}|EXTERNAL_IP=$HOST_IP|" "$OVERRIDES_ENV"
@@ -208,7 +208,7 @@ configure_all_env_files() {
     print_info "Configuring service .env files..."
 
     SERVICES_SOURCE_DIR="$INSTALL_DIR/video-search-and-summarization/deploy/docker/services"
-    SERVICES_DEST_DIR="$VSS_APPS_DIR/services"
+    SERVICES_DEST_DIR="$INSTALL_DIR/video-search-and-summarization/deploy/docker/services"
 
     # List of env files to copy
     ENV_FILES=(

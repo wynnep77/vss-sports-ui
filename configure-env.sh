@@ -49,7 +49,7 @@ fi
 
 VSS_DIR="$INSTALL_DIR/video-search-and-summarization"
 SERVICES_DIR="$VSS_DIR/deploy/docker/services"
-VSS_APPS_DIR="$VSS_DIR/services/ui"
+VSS_APPS_DIR="$VSS_DIR/deploy/docker"
 VSS_DATA_DIR="$INSTALL_DIR/vss-data"
 
 # Get user input
@@ -123,7 +123,7 @@ OVERRIDES_ENV="$VSS_DIR/deploy/docker/developer-profiles/dev-profile-base/overri
 if [ -f "$OVERRIDES_ENV" ]; then
     cp "$OVERRIDES_ENV" "${OVERRIDES_ENV}.backup"
     
-    sed -i "s|VSS_APPS_DIR=\"/path/to/deploy/docker\"|VSS_APPS_DIR=\"$VSS_DIR\"|" "$OVERRIDES_ENV"
+    sed -i "s|VSS_APPS_DIR=\"/path/to/deploy/docker\"|VSS_APPS_DIR=\"$VSS_APPS_DIR\"|" "$OVERRIDES_ENV"
     sed -i "s|VSS_DATA_DIR=\"/path/to/vss-apps-data\"|VSS_DATA_DIR=\"$VSS_DATA_DIR\"|" "$OVERRIDES_ENV"
     sed -i "s|HOST_IP='<HOST_IP>'|HOST_IP='$HOST_IP'|" "$OVERRIDES_ENV"
     sed -i "s|EXTERNAL_IP=\${HOST_IP}|EXTERNAL_IP=$HOST_IP|" "$OVERRIDES_ENV"
@@ -148,60 +148,28 @@ fi
 # Copy and configure service .env files
 print_header "Configuring service .env files"
 
-# Create VSS_APPS_DIR structure
-mkdir -p "$VSS_APPS_DIR/services"
-
-# List of env files to configure
-declare -A ENV_CONFIGS=(
-    ["agent/agent.env"]="VSS_AGENT_HOST=0.0.0.0
-VSS_AGENT_PORT=8000
-VSS_AGENT_OBJECT_STORE_TYPE=local_object_store
-PHOENIX_ENDPOINT=http://phoenix:6006
-VSS_ES_PORT=9200
-VSS_VA_MCP_PORT=9901
-VIDEO_ANALYSIS_MCP_URL=http://vss-va-mcp:\${VSS_VA_MCP_PORT}"
-VSS_APPS_DIR=$VSS_APPS_DIR"
-    
-    ["alert/alert.env"]="ALERT_BRIDGE_PORT=9080
-ALERT_BRIDGE_URL=http://alert-bridge:\${ALERT_BRIDGE_PORT}
-ALERT_ENABLE_OTEL_MONITORING=false
-ALERT_OTEL_TRACES_EXPORTER=otlp
-VSS_APPS_DIR=$VSS_APPS_DIR"
-    
-    ["rtvi/rtvi.env"]="VSS_APPS_DIR=$VSS_APPS_DIR"
-    
-    ["vios/vst.env"]="VSS_APPS_DIR=$VSS_APPS_DIR
-VST_VOLUME=\${VSS_DATA_DIR}/data_log/vst"
-VSS_DATA_DIR=$VSS_DATA_DIR"
-    
-    ["infra/infra.env"]="VSS_APPS_DIR=$VSS_APPS_DIR"
-    
-    ["nim/nim.env"]="VSS_APPS_DIR=$VSS_APPS_DIR"
-    
-    ["ui/ui.env"]="VSS_APPS_DIR=$VSS_APPS_DIR"
-    
-    ["nvstreamer/.env"]="VSS_APPS_DIR=$VSS_APPS_DIR"
-    
-    ["video-summarization/lvs.env"]="VSS_APPS_DIR=$VSS_APPS_DIR"
+# List of env files to configure (using a simple array instead of associative array)
+ENV_FILES=(
+    "agent/agent.env"
+    "alert/alert.env"
+    "rtvi/rtvi.env"
+    "vios/vst.env"
+    "infra/infra.env"
+    "nim/nim.env"
+    "ui/ui.env"
+    "nvstreamer/.env"
+    "video-summarization/lvs.env"
 )
 
-for env_file in "${!ENV_CONFIGS[@]}"; do
+for env_file in "${ENV_FILES[@]}"; do
     source_file="$SERVICES_DIR/$env_file"
-    dest_file="$VSS_APPS_DIR/services/$env_file"
-    
+    dest_file="$SERVICES_DIR/$env_file"
+
     if [ -f "$source_file" ]; then
-        mkdir -p "$(dirname "$dest_file")"
-        
-        # Copy the file
-        cp "$source_file" "$dest_file"
-        
-        # Append configuration if not already present
-        config="${ENV_CONFIGS[$env_file]}"
-        while IFS= read -r line; do
-            if [ -n "$line" ] && ! grep -q "^$(echo $line | cut -d= -f1)=" "$dest_file"; then
-                echo "$line" >> "$dest_file"
-            fi
-        done <<< "$config"
+        # Add VSS_APPS_DIR if not already present
+        if ! grep -q "^VSS_APPS_DIR=" "$dest_file"; then
+            echo "VSS_APPS_DIR=$VSS_APPS_DIR" >> "$dest_file"
+        fi
         
         print_success "Configured $env_file"
     else
