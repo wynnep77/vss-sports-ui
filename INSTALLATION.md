@@ -4,35 +4,32 @@ This guide provides step-by-step instructions for deploying the VSS Sports Analy
 
 ## Quick Start (Automated Installation)
 
-We provide automated installation scripts for both Ubuntu and Windows. Additionally, a configuration script is available to populate all .env files with valid settings.
+We provide automated installation scripts for both Ubuntu and Windows. The installation script now automatically configures all .env files with valid settings.
 
-### Step 1: Configure Environment Variables (Ubuntu)
-
-Before running the installation, use the configuration script to populate all .env files:
+### Ubuntu Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/wynnep77/vss-sports-ui.git
 cd vss-sports-ui
-chmod +x configure-env.sh
-./configure-env.sh
-```
 
-This script will:
-- Prompt for your server IP address
-- Prompt for your NVIDIA NGC API key
-- Configure all .env files with valid settings
-- Set hardware profile to RTXPRO6000BW
-- Create backup files before modifying
-
-### Step 2: Run Installation (Ubuntu)
-
-```bash
-# Download the script
-wget https://raw.githubusercontent.com/wynnep77/vss-sports-ui/main/install.sh
+# Make the script executable
 chmod +x install.sh
 
-# Run the installation
+# Run the installation (automatically configures all .env files)
 ./install.sh
 ```
+
+The script will:
+- Check your GPU and NVIDIA drivers (preserves existing drivers)
+- Install Docker and Docker Compose if needed
+- Prompt for your NVIDIA NGC API key
+- Detect your network configuration
+- **Automatically configure all .env files** with valid settings
+- Clone and configure the VSS Blueprint
+- Deploy the VSS backend services
+- Deploy the Sports UI frontend
+- Verify the deployment
 
 The script will:
 1. Check your GPU and NVIDIA drivers

@@ -96,6 +96,123 @@ check_gpu() {
 }
 
 ################################################################################
+# Environment Configuration
+################################################################################
+
+configure_all_env_files() {
+    print_header "Configuring All Environment Files"
+
+    # Create .env file in vss-sports-ui directory
+    print_info "Creating .env file in vss-sports-ui directory..."
+    
+    if [ -z "$SPORTS_UI_DIR" ]; then
+        SPORTS_UI_DIR="$INSTALL_DIR/vss-sports-ui"
+    fi
+    
+    SPORTS_UI_ENV="$SPORTS_UI_DIR/.env"
+    
+    # Create .env from template if it doesn't exist
+    if [ ! -f "$SPORTS_UI_ENV" ]; then
+        if [ -f "$SPORTS_UI_DIR/.env.template" ]; then
+            cp "$SPORTS_UI_DIR/.env.template" "$SPORTS_UI_ENV"
+            print_success "Created .env from template"
+        else
+            print_error ".env.template not found"
+            exit 1
+        fi
+    fi
+    
+    # Update the .env file with HOST_IP and NGC_API_KEY
+    sed -i "s/^HOST_IP=.*/HOST_IP=$HOST_IP/" "$SPORTS_UI_ENV"
+    sed -i "s/^NGC_API_KEY=.*/NGC_API_KEY=$NGC_API_KEY/" "$SPORTS_UI_ENV"
+    
+    # Set VSS_APPS_DIR and VSS_DATA_DIR
+    sed -i "s|^VSS_APPS_DIR=.*|VSS_APPS_DIR=$INSTALL_DIR/video-search-and-summarization/services/ui|" "$SPORTS_UI_ENV"
+    sed -i "s|^VSS_DATA_DIR=.*|VSS_DATA_DIR=$INSTALL_DIR/vss-data|" "$SPORTS_UI_ENV"
+    
+    print_success "Configured vss-sports-ui/.env"
+
+    # Configure dev-profile-base .env
+    PROFILE_ENV="$INSTALL_DIR/video-search-and-summarization/deploy/docker/developer-profiles/dev-profile-base/.env"
+
+    if [ -f "$PROFILE_ENV" ]; then
+        cp "$PROFILE_ENV" "${PROFILE_ENV}.backup"
+        
+        sed -i "s/^HOST_IP=.*/HOST_IP=$HOST_IP/" "$PROFILE_ENV"
+        sed -i "s/^NGC_API_KEY=.*/NGC_API_KEY=$NGC_API_KEY/" "$PROFILE_ENV"
+        
+        # Set derived URLs
+        LLM_PORT=30081
+        VLM_PORT=30082
+        VST_PORT=30888
+        
+        sed -i "s/^LLM_BASE_URL=.*/LLM_BASE_URL=http:\/\/\${HOST_IP}:${LLM_PORT}/" "$PROFILE_ENV"
+        sed -i "s/^VLM_BASE_URL=.*/VLM_BASE_URL=http:\/\/\${HOST_IP}:${VLM_PORT}/" "$PROFILE_ENV"
+        sed -i "s/^VST_INTERNAL_URL=.*/VST_INTERNAL_URL=http:\/\/\${HOST_IP}:${VST_PORT}/" "$PROFILE_ENV"
+        sed -i "s/^VST_EXTERNAL_URL=.*/VST_EXTERNAL_URL=http:\/\/\${HOST_IP}:${VST_PORT}/" "$PROFILE_ENV"
+        
+        print_success "Configured dev-profile-base/.env"
+    else
+        print_error "dev-profile-base/.env not found"
+        exit 1
+    fi
+
+    # Configure overrides.env
+    OVERRIDES_ENV="$INSTALL_DIR/video-search-and-summarization/deploy/docker/developer-profiles/dev-profile-base/overrides.env"
+
+    if [ -f "$OVERRIDES_ENV" ]; then
+        cp "$OVERRIDES_ENV" "${OVERRIDES_ENV}.backup"
+        
+        sed -i "s|VSS_APPS_DIR=\"/path/to/deploy/docker\"|VSS_APPS_DIR=\"$INSTALL_DIR/video-search-and-summarization\"|" "$OVERRIDES_ENV"
+        sed -i "s|VSS_DATA_DIR=\"/path/to/vss-apps-data\"|VSS_DATA_DIR=\"$INSTALL_DIR/vss-data\"|" "$OVERRIDES_ENV"
+        sed -i "s|HOST_IP='<HOST_IP>'|HOST_IP='$HOST_IP'|" "$OVERRIDES_ENV"
+        sed -i "s|EXTERNAL_IP=\${HOST_IP}|EXTERNAL_IP=$HOST_IP|" "$OVERRIDES_ENV"
+        sed -i "s|NGC_CLI_API_KEY=\${NGC_CLI_API_KEY:-}|NGC_CLI_API_KEY=$NGC_API_KEY|" "$OVERRIDES_ENV"
+        sed -i "s|NVIDIA_API_KEY=\${NVIDIA_API_KEY:-}|NVIDIA_API_KEY=$NGC_API_KEY|" "$OVERRIDES_ENV"
+        sed -i "s|HARDWARE_PROFILE=H100|HARDWARE_PROFILE=RTXPRO6000BW|" "$OVERRIDES_ENV"
+        
+        print_success "Configured overrides.env"
+    else
+        print_error "overrides.env not found"
+        exit 1
+    fi
+
+    # Copy and configure service .env files
+    print_info "Configuring service .env files..."
+
+    SERVICES_SOURCE_DIR="$INSTALL_DIR/video-search-and-summarization/deploy/docker/services"
+    SERVICES_DEST_DIR="$VSS_APPS_DIR/services"
+
+    # List of env files to copy
+    ENV_FILES=(
+        "agent/agent.env"
+        "alert/alert.env"
+        "rtvi/rtvi.env"
+        "vios/vst.env"
+        "infra/infra.env"
+        "nim/nim.env"
+        "ui/ui.env"
+        "nvstreamer/.env"
+        "video-summarization/lvs.env"
+    )
+
+    for env_file in "${ENV_FILES[@]}"; do
+        source_file="$SERVICES_SOURCE_DIR/$env_file"
+        dest_file="$SERVICES_DEST_DIR/$env_file"
+
+        if [ -f "$source_file" ]; then
+            mkdir -p "$(dirname "$dest_file")"
+            cp "$source_file" "$dest_file"
+            print_success "Copied $env_file"
+        else
+            print_warning "Skipping $env_file (not found at $source_file)"
+        fi
+    done
+
+    print_success "All environment files configured"
+}
+
+################################################################################
 # Installation Steps
 ################################################################################
 
@@ -195,8 +312,8 @@ setup_vss_blueprint() {
 
     print_success "VSS Blueprint cloned"
 
-    # Create environment file for dev-profile-base
-    print_info "Configuring VSS environment..."
+    # Copy the .env file from vss-sports-ui to VSS Blueprint location
+    print_info "Copying .env file to VSS Blueprint location..."
 
     # Use the SPORTS_UI_DIR from main()
     if [ -z "$SPORTS_UI_DIR" ]; then
@@ -204,7 +321,6 @@ setup_vss_blueprint() {
     fi
 
     SPORTS_UI_ENV="$SPORTS_UI_DIR/.env"
-
     PROFILE_DIR="$INSTALL_DIR/video-search-and-summarization/deploy/docker/developer-profiles/dev-profile-base"
     VSS_ENV_FILE="$PROFILE_DIR/.env"
 
@@ -218,106 +334,10 @@ setup_vss_blueprint() {
         print_error "Environment file not found in vss-sports-ui directory"
         print_info "Required location: $SPORTS_UI_ENV"
         print_info ""
-        print_info "To create the .env file:"
-        print_info "  cd $SPORTS_UI_DIR"
-        print_info "  cp .env.template .env"
-        print_info "  nano .env"
-        print_info ""
-        print_info "Then fill in your NGC API key and other settings"
+        print_info "The configure_all_env_files function should have created this"
+        print_info "Please check the script output for errors"
         exit 1
     fi
-
-    # Backup original env file
-    cp "$VSS_ENV_FILE" "${VSS_ENV_FILE}.backup"
-
-    # Update environment variables
-    sed -i "s/^HOST_IP=.*/HOST_IP=$HOST_IP/" "$VSS_ENV_FILE"
-    sed -i "s/^NGC_API_KEY=.*/NGC_API_KEY=$NGC_API_KEY/" "$VSS_ENV_FILE"
-
-    # Set derived variables
-    LLM_PORT=30081
-    VLM_PORT=30082
-    VST_PORT=30888
-    VSS_AGENT_PORT=8000
-    VSS_APPS_DIR="$INSTALL_DIR/video-search-and-summarization/services/ui"
-    VSS_DATA_DIR="$INSTALL_DIR/vss-data"
-
-    # Update VSS_APPS_DIR in .env to use the actual installation directory
-    sed -i "s|VSS_APPS_DIR=.*|VSS_APPS_DIR=$VSS_APPS_DIR|" "$VSS_ENV_FILE"
-
-    sed -i "s/^LLM_BASE_URL=.*/LLM_BASE_URL=http:\/\/\${HOST_IP}:${LLM_PORT}/" "$VSS_ENV_FILE"
-    sed -i "s/^VLM_BASE_URL=.*/VLM_BASE_URL=http:\/\/\${HOST_IP}:${VLM_PORT}/" "$VSS_ENV_FILE"
-    sed -i "s/^VST_INTERNAL_URL=.*/VST_INTERNAL_URL=http:\/\/\${HOST_IP}:${VST_PORT}/" "$VSS_ENV_FILE"
-    sed -i "s/^VST_EXTERNAL_URL=.*/VST_EXTERNAL_URL=http:\/\/\${HOST_IP}:${VST_PORT}/" "$VSS_ENV_FILE"
-
-    # Also update the vss-sports-ui .env file
-    cp "$VSS_ENV_FILE" "$SPORTS_UI_ENV"
-
-    # Ensure VSS_APPS_DIR is set in the VSS .env file for Docker Compose
-    if ! grep -q "^VSS_APPS_DIR=" "$VSS_ENV_FILE"; then
-        echo "VSS_APPS_DIR=$VSS_APPS_DIR" >> "$VSS_ENV_FILE"
-        print_success "Added VSS_APPS_DIR to VSS .env file"
-    else
-        sed -i "s|^VSS_APPS_DIR=.*|VSS_APPS_DIR=$VSS_APPS_DIR|" "$VSS_ENV_FILE"
-        print_success "Updated VSS_APPS_DIR in VSS .env file"
-    fi
-
-    # Configure overrides.env file
-    OVERRIDES_ENV_FILE="$PROFILE_DIR/overrides.env"
-    if [ -f "$OVERRIDES_ENV_FILE" ]; then
-        print_info "Configuring overrides.env file..."
-        
-        # Backup original
-        cp "$OVERRIDES_ENV_FILE" "${OVERRIDES_ENV_FILE}.backup"
-        
-        # Update key variables in overrides.env
-        sed -i "s|VSS_APPS_DIR=\"/path/to/deploy/docker\"|VSS_APPS_DIR=\"$INSTALL_DIR/video-search-and-summarization\"|" "$OVERRIDES_ENV_FILE"
-        sed -i "s|VSS_DATA_DIR=\"/path/to/vss-apps-data\"|VSS_DATA_DIR=\"$VSS_DATA_DIR\"|" "$OVERRIDES_ENV_FILE"
-        sed -i "s|HOST_IP='<HOST_IP>'|HOST_IP='$HOST_IP'|" "$OVERRIDES_ENV_FILE"
-        sed -i "s|NGC_CLI_API_KEY=\${NGC_CLI_API_KEY:-}|NGC_CLI_API_KEY=$NGC_API_KEY|" "$OVERRIDES_ENV_FILE"
-        sed -i "s|NVIDIA_API_KEY=\${NVIDIA_API_KEY:-}|NVIDIA_API_KEY=$NGC_API_KEY|" "$OVERRIDES_ENV_FILE"
-        
-        # Set hardware profile to RTXPRO6000BW for RTX PRO 6000
-        sed -i "s|HARDWARE_PROFILE=H100|HARDWARE_PROFILE=RTXPRO6000BW|" "$OVERRIDES_ENV_FILE"
-        
-        print_success "Configured overrides.env file"
-    else
-        print_warning "overrides.env not found at $OVERRIDES_ENV_FILE"
-    fi
-
-    # Copy all required .env files to VSS_APPS_DIR
-    print_info "Copying required .env files to VSS_APPS_DIR..."
-
-    SERVICES_SOURCE_DIR="$INSTALL_DIR/video-search-and-summarization/deploy/docker/services"
-    SERVICES_DEST_DIR="$VSS_APPS_DIR/services"
-
-    # List of env files to copy (relative to services directory)
-    ENV_FILES=(
-        "agent/agent.env"
-        "alert/alert.env"
-        "rtvi/rtvi.env"
-        "vios/vst.env"
-        "infra/infra.env"
-        "nim/nim.env"
-        "ui/ui.env"
-        "nvstreamer/.env"
-        "video-summarization/lvs.env"
-    )
-
-    for env_file in "${ENV_FILES[@]}"; do
-        source_file="$SERVICES_SOURCE_DIR/$env_file"
-        dest_file="$SERVICES_DEST_DIR/$env_file"
-
-        if [ -f "$source_file" ]; then
-            # Create directory if it doesn't exist
-            mkdir -p "$(dirname "$dest_file")"
-            # Copy the file
-            cp "$source_file" "$dest_file"
-            print_success "Copied $env_file"
-        else
-            print_warning "Skipping $env_file (not found at $source_file)"
-        fi
-    done
 
     print_success "VSS environment configured"
 }
@@ -526,61 +546,28 @@ main() {
     # Step 5: Detect host IP
     detect_host_ip
 
-    # Step 5.5: Check for .env file
-    print_header "Checking Environment Configuration"
+    # Step 6: Configure all .env files
+    configure_all_env_files
 
-    print_info "Looking for .env in: $SPORTS_UI_DIR/.env"
-    print_info "Also checking: $CURRENT_DIR/.env"
-    print_info "SPORTS_UI_DIR=$SPORTS_UI_DIR"
-    print_info "CURRENT_DIR=$CURRENT_DIR"
-
-    # List what's actually in the directory
-    if [ -d "$SPORTS_UI_DIR" ]; then
-        print_info "Files in $SPORTS_UI_DIR:"
-        ls -la "$SPORTS_UI_DIR" | head -20
-    else
-        print_error "Directory $SPORTS_UI_DIR does not exist"
-    fi
-
-    if [ -f "$SPORTS_UI_DIR/.env" ]; then
-        print_success "Found .env at $SPORTS_UI_DIR/.env"
-    elif [ -f "$CURRENT_DIR/.env" ]; then
-        print_success "Found .env at $CURRENT_DIR/.env"
-        cp "$CURRENT_DIR/.env" "$SPORTS_UI_DIR/.env"
-    else
-        print_error ".env file not found"
-        print_info "Expected locations:"
-        print_info "  - $SPORTS_UI_DIR/.env"
-        print_info "  - $CURRENT_DIR/.env"
-        print_info ""
-        print_info "To create the .env file:"
-        print_info "  cd $SPORTS_UI_DIR"
-        print_info "  cp .env.template .env"
-        print_info "  nano .env"
-        print_info ""
-        print_info "Then fill in your NGC API key and other settings"
-        exit 1
-    fi
-
-    # Step 6: Setup VSS Blueprint
+    # Step 7: Setup VSS Blueprint
     setup_vss_blueprint
 
-    # Step 7: Deploy VSS Backend
+    # Step 8: Deploy VSS Backend
     if ! deploy_vss_backend; then
         print_error "VSS backend deployment failed"
         exit 1
     fi
 
-    # Step 8: Setup Sports Frontend
+    # Step 9: Setup Sports Frontend
     setup_sports_frontend
 
-    # Step 9: Deploy Sports Frontend
+    # Step 10: Deploy Sports Frontend
     deploy_sports_frontend
 
-    # Step 10: Verify deployment
+    # Step 11: Verify deployment
     verify_deployment
 
-    # Step 11: Print summary
+    # Step 12: Print summary
     print_summary
 }
 
