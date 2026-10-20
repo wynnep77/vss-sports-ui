@@ -726,6 +726,7 @@ deploy_vss_backend() {
     print_info "Creating .env file in deploy/docker directory..."
     cat > .env << EOF
 VSS_APPS_DIR=$VSS_APPS_DIR
+VSS_DATA_DIR=$VSS_DATA_DIR
 HOST_IP=$HOST_IP
 EOF
     print_success "Created .env file in deploy/docker directory"
