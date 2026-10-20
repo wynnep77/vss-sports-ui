@@ -357,6 +357,16 @@ EOF
         sed -i "s#VSS_AGENT_REPORTS_BASE_URL=\${VSS_PUBLIC_HTTP_PROTOCOL}://\${VSS_PUBLIC_HOST}:\${VSS_PUBLIC_PORT}/static/#VSS_AGENT_REPORTS_BASE_URL=http://$HOST_IP:7777/static/#" "$OVERRIDES_ENV"
         sed -i "s#VSS_AGENT_EXTERNAL_URL=\${VSS_PUBLIC_HTTP_PROTOCOL}://\${VSS_PUBLIC_HOST}:\${VSS_PUBLIC_PORT}#VSS_AGENT_EXTERNAL_URL=http://$HOST_IP:7777#" "$OVERRIDES_ENV"
         
+        # Update VSS_AGENT_CONFIG_FILE if it exists in overrides.env
+        if grep -q "^VSS_AGENT_CONFIG_FILE=" "$OVERRIDES_ENV"; then
+            sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=$PROFILE_DIR/vss-agent/configs/config.yml|" "$OVERRIDES_ENV"
+            print_info "Updated VSS_AGENT_CONFIG_FILE in overrides.env"
+        else
+            # Add it if it doesn't exist
+            echo "VSS_AGENT_CONFIG_FILE=$PROFILE_DIR/vss-agent/configs/config.yml" >> "$OVERRIDES_ENV"
+            print_info "Added VSS_AGENT_CONFIG_FILE to overrides.env"
+        fi
+        
         print_success "Configured overrides.env"
     else
         print_warning "overrides.env not found at $OVERRIDES_ENV"
@@ -386,6 +396,7 @@ VSS_APPS_DIR=$VSS_APPS_DIR
 VSS_DATA_DIR=$VSS_DIR/data
 HOST_IP='$HOST_IP'
 EXTERNAL_IP=$HOST_IP
+VSS_AGENT_CONFIG_FILE=$PROFILE_DIR/vss-agent/configs/config.yml
 HAPROXY_PORT=7777
 VSS_PUBLIC_HTTP_PROTOCOL=http
 VSS_PUBLIC_WS_PROTOCOL=ws
@@ -728,10 +739,29 @@ deploy_vss_backend() {
 VSS_APPS_DIR=$VSS_APPS_DIR
 VSS_DATA_DIR=$VSS_DATA_DIR
 HOST_IP=$HOST_IP
+VSS_AGENT_CONFIG_FILE=$PROFILE_DIR/vss-agent/configs/config.yml
 EOF
     print_success "Created .env file in deploy/docker directory"
     print_info "Contents:"
     cat .env
+    
+    # Ensure the config file exists
+    if [ ! -f "$PROFILE_DIR/vss-agent/configs/config.yml" ]; then
+        print_warning "Config file not found at $PROFILE_DIR/vss-agent/configs/config.yml"
+        print_info "Creating config file directory structure..."
+        mkdir -p "$PROFILE_DIR/vss-agent/configs"
+        # Create a minimal config file if it doesn't exist
+        cat > "$PROFILE_DIR/vss-agent/configs/config.yml" << 'EOF'
+# VSS Agent Configuration
+# This is a minimal config file - the VSS Blueprint may have a more complete one
+agent:
+  name: "vss-agent"
+  version: "1.0"
+EOF
+        print_success "Created minimal config file"
+    else
+        print_success "Config file exists at $PROFILE_DIR/vss-agent/configs/config.yml"
+    fi
     
     # Create local directories for data storage (as fallback for volume mounting issues)
     print_info "Creating local data directories as fallback..."
