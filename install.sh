@@ -453,9 +453,36 @@ install_dependencies() {
     print_warning "Skipping NVIDIA driver installation to preserve your existing setup"
     print_info "Your current NVIDIA drivers will be preserved"
     print_info "Blocking nvidia driver packages from apt"
+    print_warning "Blocking kernel updates to preserve current kernel configuration"
 
     # Pin nvidia packages to prevent auto-installation
     sudo apt-mark hold nvidia-driver-* nvidia-* 2>/dev/null || true
+    
+    # Pin kernel packages to prevent kernel updates
+    sudo apt-mark hold linux-image-* linux-headers-* linux-modules-* 2>/dev/null || true
+    
+    # Create apt preferences to block kernel and driver updates
+    sudo tee /etc/apt/preferences.d/no-kernel-upgrade > /dev/null << 'EOF'
+Package: linux-image-*
+Pin: release *
+Pin-Priority: -1
+
+Package: linux-headers-*
+Pin: release *
+Pin-Priority: -1
+
+Package: linux-modules-*
+Pin: release *
+Pin-Priority: -1
+
+Package: nvidia-driver-*
+Pin: release *
+Pin-Priority: -1
+
+Package: nvidia-*
+Pin: release *
+Pin-Priority: -1
+EOF
     
     sudo apt-get update
     
@@ -471,7 +498,7 @@ install_dependencies() {
         pkg-config \
         python3-dev
 
-    print_success "System dependencies installed (NVIDIA drivers preserved)"
+    print_success "System dependencies installed (NVIDIA drivers and kernel preserved)"
 }
 
 prompt_api_keys() {
@@ -550,11 +577,16 @@ deploy_vss_backend() {
     export CUDA_DRIVER_AUTO_UPDATE=false
     export ACCEPT_EULA=Y
     
+    # Prevent kernel updates
+    export SKIP_KERNEL_UPDATE=true
+    export DISABLE_KERNEL_UPDATE=true
+    
     # Add nvidia-smi to PATH to prevent auto-update
     export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
     
-    # Create a marker file to prevent driver updates
+    # Create a marker file to prevent driver and kernel updates
     touch /tmp/.skip_nvidia_driver_update
+    touch /tmp/.skip_kernel_update
     
     print_info "Setting VSS_APPS_DIR=$VSS_APPS_DIR"
     print_info "Setting VSS_DATA_DIR=$VSS_DATA_DIR"
@@ -706,6 +738,8 @@ main() {
     print_info "Your existing NVIDIA drivers will be preserved"
     print_info "If you need to install drivers, do so manually before running this script"
     print_info "Current driver version will be preserved (e.g., 580.105.08)"
+    print_warning "IMPORTANT: This script will NOT update the kernel"
+    print_info "Your current kernel configuration will be preserved"
     echo ""
 
     # Export global variables to prevent driver installation
@@ -714,11 +748,16 @@ main() {
     export DISABLE_NVIDIA_DRIVER_UPDATE=true
     export NVIDIA_SILENT=true
     
+    # Prevent kernel updates
+    export SKIP_KERNEL_UPDATE=true
+    export DISABLE_KERNEL_UPDATE=true
+    
     # Add nvidia-smi to PATH to prevent auto-update
     export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
     
-    # Create a marker file to prevent driver updates
+    # Create a marker file to prevent driver and kernel updates
     touch /tmp/.skip_nvidia_driver_update
+    touch /tmp/.skip_kernel_update
 
     # Detect if running from within vss-sports-ui directory
     CURRENT_DIR="$(pwd)"
