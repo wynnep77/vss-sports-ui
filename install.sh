@@ -527,6 +527,15 @@ EOF
             else
                 print_success "Docker reconfigured to use standard path"
             fi
+        else
+            # Docker is using standard path, but fix permissions on /mnt/docker if it exists
+            if [ -d "/mnt/docker" ]; then
+                print_warning "Found /mnt/docker directory (not used by Docker)"
+                print_info "Fixing permissions on /mnt/docker..."
+                sudo chmod -R 755 /mnt/docker
+                sudo chown -R root:root /mnt/docker
+                print_success "Fixed permissions on /mnt/docker"
+            fi
         fi
     fi
     
@@ -659,6 +668,14 @@ deploy_vss_backend() {
     docker volume rm vss_redis_data 2>/dev/null || true
     docker volume rm vss_postgres_data 2>/dev/null || true
     print_success "Cleaned up existing volumes"
+    
+    # Fix permissions on /mnt/docker if it exists (even if not used by Docker)
+    if [ -d "/mnt/docker" ]; then
+        print_warning "Found /mnt/docker directory, fixing permissions..."
+        sudo chmod -R 755 /mnt/docker
+        sudo chown -R root:root /mnt/docker
+        print_success "Fixed permissions on /mnt/docker"
+    fi
     
     # Create local directories for data storage (as fallback for volume mounting issues)
     print_info "Creating local data directories as fallback..."
