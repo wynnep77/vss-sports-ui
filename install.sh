@@ -293,6 +293,16 @@ configure_all_env_files() {
             fi
         fi
     fi
+    
+    # Verify the config file actually exists
+    print_info "Verifying config file exists: $VSS_AGENT_CONFIG_FILE"
+    if [ ! -f "$VSS_AGENT_CONFIG_FILE" ]; then
+        print_error "Config file does not exist: $VSS_AGENT_CONFIG_FILE"
+        print_info "The VSS Blueprint may be incomplete"
+        exit 1
+    else
+        print_success "Config file exists"
+    fi
 
     # Configure dev-profile-base .env
     if [ -f "$PROFILE_ENV" ]; then
@@ -798,6 +808,29 @@ EOF
     mkdir -p /tmp /var/tmp /usr/tmp
     chmod 777 /tmp /var/tmp /usr/tmp
     print_success "Tmp directory is ready"
+    
+    # Verify the config file actually exists on the host
+    print_info "Verifying config file exists on host..."
+    if [ ! -f "$VSS_AGENT_CONFIG_FILE" ]; then
+        print_error "Config file does not exist on host: $VSS_AGENT_CONFIG_FILE"
+        print_info "This file is required for the VSS agent to start"
+        print_info "Checking if vss-agent directory exists..."
+        if [ -d "$PROFILE_DIR/vss-agent" ]; then
+            print_info "vss-agent directory exists at: $PROFILE_DIR/vss-agent"
+            print_info "Contents of vss-agent directory:"
+            ls -la "$PROFILE_DIR/vss-agent" 2>/dev/null || print_warning "Cannot list directory"
+        else
+            print_warning "vss-agent directory does not exist at: $PROFILE_DIR/vss-agent"
+            print_info "Contents of profile directory:"
+            ls -la "$PROFILE_DIR" 2>/dev/null || print_warning "Cannot list directory"
+        fi
+        print_error "The VSS Blueprint may be incomplete or missing the vss-agent configuration"
+        print_info "Please check the VSS Blueprint repository for the correct configuration files"
+        print_info "Repository: https://github.com/NVIDIA-AI-IOT/vss"
+        exit 1
+    else
+        print_success "Config file exists on host: $VSS_AGENT_CONFIG_FILE"
+    fi
     
     # Verify the config file path doesn't point to wrong profile (e.g., dev-profile-lvs)
     print_info "Current VSS_AGENT_CONFIG_FILE: $VSS_AGENT_CONFIG_FILE"
