@@ -477,6 +477,41 @@ install_docker() {
         sudo chmod +x /usr/local/bin/docker-compose
         print_success "Docker Compose installed"
     fi
+
+    # Fix Docker volume mounting issues
+    print_info "Configuring Docker for proper volume mounting..."
+    
+    # Ensure Docker service is running
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    
+    # Check if Docker data directory exists and has proper permissions
+    DOCKER_DATA_DIR=$(docker info 2>/dev/null | grep "Docker Root Dir" | awk '{print $3}')
+    if [ -n "$DOCKER_DATA_DIR" ]; then
+        print_info "Docker data directory: $DOCKER_DATA_DIR"
+        
+        # If Docker is using /mnt/docker, try to fix it
+        if echo "$DOCKER_DATA_DIR" | grep -q "/mnt/docker"; then
+            print_warning "Docker is using /mnt/docker which may cause volume mounting issues"
+            print_info "Attempting to fix Docker configuration..."
+            
+            # Create the directory if it doesn't exist
+            if [ ! -d "$DOCKER_DATA_DIR" ]; then
+                print_info "Creating Docker data directory: $DOCKER_DATA_DIR"
+                sudo mkdir -p "$DOCKER_DATA_DIR"
+                sudo chmod 755 "$DOCKER_DATA_DIR"
+            fi
+            
+            # Ensure proper ownership
+            sudo chown -R root:root "$DOCKER_DATA_DIR"
+        fi
+    fi
+    
+    # Clean up any orphaned volumes that might cause issues
+    print_info "Cleaning up orphaned Docker volumes..."
+    docker volume prune -f 2>/dev/null || true
+    
+    print_success "Docker configuration complete"
 }
 
 install_dependencies() {
@@ -587,6 +622,20 @@ deploy_vss_backend() {
     print_header "Deploying VSS Backend"
 
     cd "$INSTALL_DIR/video-search-and-summarization/deploy/docker"
+
+    # Clean up any existing VSS volumes to prevent mounting errors
+    print_info "Cleaning up existing VSS Docker volumes..."
+    docker volume rm vss_agent-eval 2>/dev/null || true
+    docker volume rm vss_agent_data 2>/dev/null || true
+    docker volume rm vss_vlm_data 2>/dev/null || true
+    docker volume rm vss_llm_data 2>/dev/null || true
+    docker volume rm vss_rtvi_data 2>/dev/null || true
+    docker volume rm vss_elasticsearch_data 2>/dev/null || true
+    docker volume rm vss_kafka_data 2>/dev/null || true
+    docker volume rm vss_zookeeper_data 2>/dev/null || true
+    docker volume rm vss_redis_data 2>/dev/null || true
+    docker volume rm vss_postgres_data 2>/dev/null || true
+    print_success "Cleaned up existing volumes"
 
     # Export VSS_APPS_DIR for Docker Compose (use the dynamically discovered path)
     export VSS_APPS_DIR="$VSS_APPS_DIR"
