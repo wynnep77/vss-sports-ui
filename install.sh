@@ -722,6 +722,16 @@ deploy_vss_backend() {
         print_success "Fixed permissions on /mnt/docker"
     fi
     
+    # Create .env file in deploy/docker directory for docker-compose
+    print_info "Creating .env file in deploy/docker directory..."
+    cat > .env << EOF
+VSS_APPS_DIR=$VSS_APPS_DIR
+HOST_IP=$HOST_IP
+EOF
+    print_success "Created .env file in deploy/docker directory"
+    print_info "Contents:"
+    cat .env
+    
     # Create local directories for data storage (as fallback for volume mounting issues)
     print_info "Creating local data directories as fallback..."
     mkdir -p "$VSS_DATA_DIR/agent/eval"
@@ -802,6 +812,17 @@ deploy_vss_backend() {
     print_info "Using overrides.env file: $OVERRIDES_ENV"
     print_info "VSS_APPS_DIR: $VSS_APPS_DIR"
     print_info "VSS_DATA_DIR: $VSS_DATA_DIR"
+
+    # Verify docker-compose configuration
+    print_info "Verifying docker-compose configuration..."
+    if docker-compose config > /tmp/vss-compose-resolved.yml 2>&1; then
+        print_success "Docker-compose configuration is valid"
+    else
+        print_error "Docker-compose configuration is invalid"
+        print_info "Check /tmp/vss-compose-resolved.yml for details"
+        cat /tmp/vss-compose-resolved.yml
+        exit 1
+    fi
 
     # Start the services - load both .env files (overrides.env takes precedence)
     docker-compose -f compose.yml --env-file "$PROFILE_ENV" --env-file "$OVERRIDES_ENV" up -d
