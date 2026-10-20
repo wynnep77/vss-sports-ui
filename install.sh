@@ -504,6 +504,20 @@ install_docker() {
             
             # Ensure proper ownership
             sudo chown -R root:root "$DOCKER_DATA_DIR"
+            
+            # Create the volumes subdirectory
+            if [ ! -d "$DOCKER_DATA_DIR/volumes" ]; then
+                print_info "Creating Docker volumes directory: $DOCKER_DATA_DIR/volumes"
+                sudo mkdir -p "$DOCKER_DATA_DIR/volumes"
+                sudo chmod 755 "$DOCKER_DATA_DIR/volumes"
+                sudo chown -R root:root "$DOCKER_DATA_DIR/volumes"
+            fi
+            
+            # Create the _data subdirectory structure that Docker expects
+            print_info "Creating Docker volume metadata directories..."
+            sudo mkdir -p "$DOCKER_DATA_DIR/volumes/metadata"
+            sudo chmod 755 "$DOCKER_DATA_DIR/volumes/metadata"
+            sudo chown -R root:root "$DOCKER_DATA_DIR/volumes/metadata"
         fi
     fi
     
@@ -636,6 +650,20 @@ deploy_vss_backend() {
     docker volume rm vss_redis_data 2>/dev/null || true
     docker volume rm vss_postgres_data 2>/dev/null || true
     print_success "Cleaned up existing volumes"
+    
+    # Create local directories for data storage (as fallback for volume mounting issues)
+    print_info "Creating local data directories as fallback..."
+    mkdir -p "$VSS_DATA_DIR/agent/eval"
+    mkdir -p "$VSS_DATA_DIR/agent/data"
+    mkdir -p "$VSS_DATA_DIR/vlm/data"
+    mkdir -p "$VSS_DATA_DIR/llm/data"
+    mkdir -p "$VSS_DATA_DIR/rtvi/data"
+    mkdir -p "$VSS_DATA_DIR/elasticsearch/data"
+    mkdir -p "$VSS_DATA_DIR/kafka/data"
+    mkdir -p "$VSS_DATA_DIR/zookeeper/data"
+    mkdir -p "$VSS_DATA_DIR/redis/data"
+    mkdir -p "$VSS_DATA_DIR/postgres/data"
+    print_success "Created local data directories"
 
     # Export VSS_APPS_DIR for Docker Compose (use the dynamically discovered path)
     export VSS_APPS_DIR="$VSS_APPS_DIR"
