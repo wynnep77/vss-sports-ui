@@ -248,17 +248,22 @@ configure_all_env_files() {
 
     # Check if vss-agent config file exists and update path if needed
     VSS_AGENT_CONFIG_DIR="$PROFILE_DIR/vss-agent/configs"
-    if [ -d "$VSS_AGENT_CONFIG_DIR" ]; then
-        print_info "Found vss-agent config directory: $VSS_AGENT_CONFIG_DIR"
-        # The config file path should be relative to the container mount
-        # Update it to use the correct path
-        if [ -f "$VSS_AGENT_CONFIG_DIR/config.yml" ]; then
-            print_info "Found config.yml at $VSS_AGENT_CONFIG_DIR/config.yml"
-        else
-            print_warning "config.yml not found at $VSS_AGENT_CONFIG_DIR/config.yml"
-        fi
+    VSS_AGENT_CONFIG_FILE=""
+    
+    # Search for config.yml in the VSS Blueprint
+    print_info "Searching for vss-agent config.yml in VSS Blueprint..."
+    FOUND_CONFIG=$(find "$VSS_DIR" -name "config.yml" -path "*/vss-agent/configs/*" 2>/dev/null | head -1)
+    
+    if [ -n "$FOUND_CONFIG" ]; then
+        print_info "Found config.yml at: $FOUND_CONFIG"
+        VSS_AGENT_CONFIG_FILE="$FOUND_CONFIG"
     else
-        print_warning "vss-agent config directory not found at $VSS_AGENT_CONFIG_DIR"
+        print_error "config.yml not found in VSS Blueprint"
+        print_info "Searched in: $VSS_DIR"
+        print_error "The dev-profile-base deployment files appear to be incomplete"
+        print_info "Please restore the dev-profile-base deployment files from the VSS Blueprint"
+        print_info "Or check if the config file exists in a different location"
+        exit 1
     fi
 
     # Configure dev-profile-base .env
@@ -267,7 +272,7 @@ configure_all_env_files() {
         
         # Update VSS_AGENT_CONFIG_FILE to use the correct path
         if grep -q "^VSS_AGENT_CONFIG_FILE=" "$PROFILE_ENV"; then
-            sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=$PROFILE_DIR/vss-agent/configs/config.yml|" "$PROFILE_ENV"
+            sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE|" "$PROFILE_ENV"
             print_info "Updated VSS_AGENT_CONFIG_FILE in existing .env"
         fi
         
@@ -311,7 +316,7 @@ RESERVED_DEVICE_IDS=''
 FIXED_SHARED_DEVICE_IDS=''
 ELASTICSEARCH_ILM_MIN_AGE=4h
 STREAM_TYPE=kafka
-VSS_AGENT_CONFIG_FILE=$PROFILE_DIR/vss-agent/configs/config.yml
+VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE
 ENABLE_AUDIO=false
 NEXT_PUBLIC_APP_SUBTITLE="Vision (Base)"
 NEXT_PUBLIC_SIDEBAR_CHAT_WORKFLOW="VSS Agent"
@@ -359,11 +364,11 @@ EOF
         
         # Update VSS_AGENT_CONFIG_FILE if it exists in overrides.env
         if grep -q "^VSS_AGENT_CONFIG_FILE=" "$OVERRIDES_ENV"; then
-            sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=$PROFILE_DIR/vss-agent/configs/config.yml|" "$OVERRIDES_ENV"
+            sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE|" "$OVERRIDES_ENV"
             print_info "Updated VSS_AGENT_CONFIG_FILE in overrides.env"
         else
             # Add it if it doesn't exist
-            echo "VSS_AGENT_CONFIG_FILE=$PROFILE_DIR/vss-agent/configs/config.yml" >> "$OVERRIDES_ENV"
+            echo "VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE" >> "$OVERRIDES_ENV"
             print_info "Added VSS_AGENT_CONFIG_FILE to overrides.env"
         fi
         
@@ -404,7 +409,7 @@ VSS_APPS_DIR=$VSS_APPS_DIR
 VSS_DATA_DIR=$VSS_DIR/data
 HOST_IP='$HOST_IP'
 EXTERNAL_IP=$HOST_IP
-VSS_AGENT_CONFIG_FILE=$PROFILE_DIR/vss-agent/configs/config.yml
+VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE
 HAPROXY_PORT=7777
 VSS_PUBLIC_HTTP_PROTOCOL=http
 VSS_PUBLIC_WS_PROTOCOL=ws
@@ -502,6 +507,7 @@ EOF
     export OVERRIDES_ENV
     export VSS_DIR
     export VSS_DATA_DIR
+    export VSS_AGENT_CONFIG_FILE
 
     # Print configuration summary
     print_info "Configuration paths:"
@@ -511,6 +517,7 @@ EOF
     print_info "  PROFILE_DIR: $PROFILE_DIR"
     print_info "  PROFILE_ENV: $PROFILE_ENV"
     print_info "  OVERRIDES_ENV: $OVERRIDES_ENV"
+    print_info "  VSS_AGENT_CONFIG_FILE: $VSS_AGENT_CONFIG_FILE"
 }
 
 ################################################################################
@@ -747,7 +754,7 @@ deploy_vss_backend() {
 VSS_APPS_DIR=$VSS_APPS_DIR
 VSS_DATA_DIR=$VSS_DATA_DIR
 HOST_IP=$HOST_IP
-VSS_AGENT_CONFIG_FILE=$PROFILE_DIR/vss-agent/configs/config.yml
+VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE
 TMPDIR=/tmp
 TEMP=/tmp
 TMP=/tmp
@@ -755,24 +762,6 @@ EOF
     print_success "Created .env file in deploy/docker directory"
     print_info "Contents:"
     cat .env
-    
-    # Ensure the config file exists
-    if [ ! -f "$PROFILE_DIR/vss-agent/configs/config.yml" ]; then
-        print_warning "Config file not found at $PROFILE_DIR/vss-agent/configs/config.yml"
-        print_info "Creating config file directory structure..."
-        mkdir -p "$PROFILE_DIR/vss-agent/configs"
-        # Create a minimal config file if it doesn't exist
-        cat > "$PROFILE_DIR/vss-agent/configs/config.yml" << 'EOF'
-# VSS Agent Configuration
-# This is a minimal config file - the VSS Blueprint may have a more complete one
-agent:
-  name: "vss-agent"
-  version: "1.0"
-EOF
-        print_success "Created minimal config file"
-    else
-        print_success "Config file exists at $PROFILE_DIR/vss-agent/configs/config.yml"
-    fi
     
     # Ensure tmp directory exists and is writable
     print_info "Ensuring tmp directory exists..."
