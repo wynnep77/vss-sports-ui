@@ -246,72 +246,19 @@ configure_all_env_files() {
     print_info "Files in profile directory:"
     ls -la "$PROFILE_DIR" 2>/dev/null || print_warning "Cannot list directory contents"
 
-    # Check if vss-agent config file exists and update path if needed
-    VSS_AGENT_CONFIG_DIR="$PROFILE_DIR/vss-agent/configs"
+    # Don't set VSS_AGENT_CONFIG_FILE - let VSS Blueprint use its default
+    # The VSS Blueprint will handle the config file path internally
+    print_info "VSS Blueprint will use default config file path"
     VSS_AGENT_CONFIG_FILE=""
-    
-    # Search for config.yml in the VSS Blueprint, preferring dev-profile-base
-    print_info "Searching for vss-agent config.yml in VSS Blueprint..."
-    print_info "Profile directory: $PROFILE_DIR"
-    
-    # First, try to find it in the current profile directory (dev-profile-base)
-    if [ -f "$PROFILE_DIR/vss-agent/configs/config.yml" ]; then
-        VSS_AGENT_CONFIG_FILE="$PROFILE_DIR/vss-agent/configs/config.yml"
-        print_info "Found config.yml in current profile: $VSS_AGENT_CONFIG_FILE"
-    else
-        # If not found in current profile, search in other locations but exclude dev-profile-lvs
-        print_warning "config.yml not found in current profile directory"
-        print_info "Searching in other locations (excluding dev-profile-lvs)..."
-        
-        # List all config.yml files found for debugging
-        print_info "All config.yml files found in VSS Blueprint:"
-        find "$VSS_DIR" -name "config.yml" -path "*/vss-agent/configs/*" 2>/dev/null | head -10
-        
-        FOUND_CONFIG=$(find "$VSS_DIR" -name "config.yml" -path "*/vss-agent/configs/*" -not -path "*/dev-profile-lvs/*" 2>/dev/null | head -1)
-        
-        if [ -n "$FOUND_CONFIG" ]; then
-            print_info "Found config.yml at: $FOUND_CONFIG"
-            VSS_AGENT_CONFIG_FILE="$FOUND_CONFIG"
-        else
-            # If still not found, try to find ANY config.yml in the VSS Blueprint
-            print_warning "config.yml not found in vss-agent/configs/*"
-            print_info "Searching for ANY config.yml in VSS Blueprint..."
-            ANY_CONFIG=$(find "$VSS_DIR" -name "config.yml" 2>/dev/null | head -5)
-            
-            if [ -n "$ANY_CONFIG" ]; then
-                print_info "Found config.yml at alternative location:"
-                echo "$ANY_CONFIG"
-                print_warning "Using first found config.yml (may not be the correct one)"
-                VSS_AGENT_CONFIG_FILE=$(echo "$ANY_CONFIG" | head -1)
-            else
-                print_error "config.yml not found anywhere in VSS Blueprint"
-                print_info "Searched in: $VSS_DIR"
-                print_error "The VSS Blueprint appears to be incomplete or missing configuration files"
-                print_info "Please ensure the VSS Blueprint is properly cloned from the official repository"
-                print_info "Repository: https://github.com/NVIDIA-AI-IOT/vss"
-                exit 1
-            fi
-        fi
-    fi
-    
-    # Verify the config file actually exists
-    print_info "Verifying config file exists: $VSS_AGENT_CONFIG_FILE"
-    if [ ! -f "$VSS_AGENT_CONFIG_FILE" ]; then
-        print_error "Config file does not exist: $VSS_AGENT_CONFIG_FILE"
-        print_info "The VSS Blueprint may be incomplete"
-        exit 1
-    else
-        print_success "Config file exists"
-    fi
 
     # Configure dev-profile-base .env
     if [ -f "$PROFILE_ENV" ]; then
         cp "$PROFILE_ENV" "${PROFILE_ENV}.backup"
         
-        # Update VSS_AGENT_CONFIG_FILE to use the correct path
+        # Remove VSS_AGENT_CONFIG_FILE if it exists (let VSS Blueprint use default)
         if grep -q "^VSS_AGENT_CONFIG_FILE=" "$PROFILE_ENV"; then
-            sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE|" "$PROFILE_ENV"
-            print_info "Updated VSS_AGENT_CONFIG_FILE in existing .env"
+            sed -i "/^VSS_AGENT_CONFIG_FILE=/d" "$PROFILE_ENV"
+            print_info "Removed VSS_AGENT_CONFIG_FILE from .env (using VSS Blueprint default)"
         fi
         
         # Update EVAL_DIR to use the correct path
@@ -354,7 +301,6 @@ RESERVED_DEVICE_IDS=''
 FIXED_SHARED_DEVICE_IDS=''
 ELASTICSEARCH_ILM_MIN_AGE=4h
 STREAM_TYPE=kafka
-VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE
 ENABLE_AUDIO=false
 NEXT_PUBLIC_APP_SUBTITLE="Vision (Base)"
 NEXT_PUBLIC_SIDEBAR_CHAT_WORKFLOW="VSS Agent"
@@ -400,14 +346,10 @@ EOF
         sed -i "s#VSS_AGENT_REPORTS_BASE_URL=\${VSS_PUBLIC_HTTP_PROTOCOL}://\${VSS_PUBLIC_HOST}:\${VSS_PUBLIC_PORT}/static/#VSS_AGENT_REPORTS_BASE_URL=http://$HOST_IP:7777/static/#" "$OVERRIDES_ENV"
         sed -i "s#VSS_AGENT_EXTERNAL_URL=\${VSS_PUBLIC_HTTP_PROTOCOL}://\${VSS_PUBLIC_HOST}:\${VSS_PUBLIC_PORT}#VSS_AGENT_EXTERNAL_URL=http://$HOST_IP:7777#" "$OVERRIDES_ENV"
         
-        # Update VSS_AGENT_CONFIG_FILE if it exists in overrides.env
+        # Remove VSS_AGENT_CONFIG_FILE if it exists (let VSS Blueprint use default)
         if grep -q "^VSS_AGENT_CONFIG_FILE=" "$OVERRIDES_ENV"; then
-            sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE|" "$OVERRIDES_ENV"
-            print_info "Updated VSS_AGENT_CONFIG_FILE in overrides.env"
-        else
-            # Add it if it doesn't exist
-            echo "VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE" >> "$OVERRIDES_ENV"
-            print_info "Added VSS_AGENT_CONFIG_FILE to overrides.env"
+            sed -i "/^VSS_AGENT_CONFIG_FILE=/d" "$OVERRIDES_ENV"
+            print_info "Removed VSS_AGENT_CONFIG_FILE from overrides.env (using VSS Blueprint default)"
         fi
         
         # Add tmp directory variables to overrides.env
@@ -448,7 +390,6 @@ VSS_APPS_DIR=$VSS_APPS_DIR
 VSS_DATA_DIR=$VSS_DIR/data
 HOST_IP='$HOST_IP'
 EXTERNAL_IP=$HOST_IP
-VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE
 HAPROXY_PORT=7777
 VSS_PUBLIC_HTTP_PROTOCOL=http
 VSS_PUBLIC_WS_PROTOCOL=ws
@@ -546,7 +487,6 @@ EOF
     export OVERRIDES_ENV
     export VSS_DIR
     export VSS_DATA_DIR
-    export VSS_AGENT_CONFIG_FILE
 
     # Print configuration summary
     print_info "Configuration paths:"
@@ -556,7 +496,6 @@ EOF
     print_info "  PROFILE_DIR: $PROFILE_DIR"
     print_info "  PROFILE_ENV: $PROFILE_ENV"
     print_info "  OVERRIDES_ENV: $OVERRIDES_ENV"
-    print_info "  VSS_AGENT_CONFIG_FILE: $VSS_AGENT_CONFIG_FILE"
 }
 
 ################################################################################
@@ -793,7 +732,6 @@ deploy_vss_backend() {
 VSS_APPS_DIR=$VSS_APPS_DIR
 VSS_DATA_DIR=$VSS_DATA_DIR
 HOST_IP=$HOST_IP
-VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE
 TMPDIR=/tmp
 TEMP=/tmp
 TMP=/tmp
@@ -809,79 +747,9 @@ EOF
     chmod 777 /tmp /var/tmp /usr/tmp
     print_success "Tmp directory is ready"
     
-    # Verify the config file actually exists on the host
-    print_info "Verifying config file exists on host..."
-    if [ ! -f "$VSS_AGENT_CONFIG_FILE" ]; then
-        print_error "Config file does not exist on host: $VSS_AGENT_CONFIG_FILE"
-        print_info "This file is required for the VSS agent to start"
-        print_info "Checking if vss-agent directory exists..."
-        if [ -d "$PROFILE_DIR/vss-agent" ]; then
-            print_info "vss-agent directory exists at: $PROFILE_DIR/vss-agent"
-            print_info "Contents of vss-agent directory:"
-            ls -la "$PROFILE_DIR/vss-agent" 2>/dev/null || print_warning "Cannot list directory"
-        else
-            print_warning "vss-agent directory does not exist at: $PROFILE_DIR/vss-agent"
-            print_info "Contents of profile directory:"
-            ls -la "$PROFILE_DIR" 2>/dev/null || print_warning "Cannot list directory"
-        fi
-        print_error "The VSS Blueprint may be incomplete or missing the vss-agent configuration"
-        print_info "Please check the VSS Blueprint repository for the correct configuration files"
-        print_info "Repository: https://github.com/NVIDIA-AI-IOT/vss"
-        exit 1
-    else
-        print_success "Config file exists on host: $VSS_AGENT_CONFIG_FILE"
-    fi
+    # VSS Blueprint will handle config file path internally
     
-    # Verify the config file path doesn't point to wrong profile (e.g., dev-profile-lvs)
-    print_info "Current VSS_AGENT_CONFIG_FILE: $VSS_AGENT_CONFIG_FILE"
-    if echo "$VSS_AGENT_CONFIG_FILE" | grep -q "dev-profile-lvs"; then
-        print_warning "Config file path points to dev-profile-lvs (wrong profile)"
-        print_info "Searching for config.yml in dev-profile-base instead..."
-        FOUND_CONFIG=$(find "$VSS_DIR" -name "config.yml" -path "*/dev-profile-base/vss-agent/configs/*" 2>/dev/null | head -1)
-        if [ -n "$FOUND_CONFIG" ]; then
-            VSS_AGENT_CONFIG_FILE="$FOUND_CONFIG"
-            print_info "Using config from dev-profile-base: $VSS_AGENT_CONFIG_FILE"
-        else
-            print_error "Could not find config.yml in dev-profile-base"
-            exit 1
-        fi
-    fi
-    
-    # Recreate .env file with updated config path if it was changed
-    if [ -f .env ]; then
-        print_info "Updating .env file with correct config path..."
-        cat > .env << EOF
-VSS_APPS_DIR=$VSS_APPS_DIR
-VSS_DATA_DIR=$VSS_DATA_DIR
-HOST_IP=$HOST_IP
-VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE
-TMPDIR=/tmp
-TEMP=/tmp
-TMP=/tmp
-XDG_RUNTIME_DIR=/tmp
-EOF
-        print_success "Updated .env file"
-        print_info "Contents of .env file:"
-        cat .env
-    fi
-    
-    # Update overrides.env with correct config path if it was changed
-    if [ -f "$OVERRIDES_ENV" ]; then
-        print_info "Updating overrides.env with correct config path..."
-        sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE|" "$OVERRIDES_ENV"
-        print_success "Updated overrides.env"
-        print_info "VSS_AGENT_CONFIG_FILE in overrides.env:"
-        grep "^VSS_AGENT_CONFIG_FILE=" "$OVERRIDES_ENV" || print_warning "Not found in overrides.env"
-    fi
-    
-    # Update PROFILE_ENV with correct config path if it was changed
-    if [ -f "$PROFILE_ENV" ]; then
-        print_info "Updating PROFILE_ENV with correct config path..."
-        sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE|" "$PROFILE_ENV"
-        print_success "Updated PROFILE_ENV"
-        print_info "VSS_AGENT_CONFIG_FILE in PROFILE_ENV:"
-        grep "^VSS_AGENT_CONFIG_FILE=" "$PROFILE_ENV" || print_warning "Not found in PROFILE_ENV"
-    fi
+    # VSS Blueprint will handle config file path internally
     
     # Create local directories for data storage (as fallback for volume mounting issues)
     print_info "Creating local data directories as fallback..."
