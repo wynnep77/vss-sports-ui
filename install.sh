@@ -162,15 +162,23 @@ configure_all_env_files() {
         if [ -f "$SPORTS_UI_DIR/.env.template" ]; then
             cp "$SPORTS_UI_DIR/.env.template" "$SPORTS_UI_ENV"
             print_success "Created .env from template"
+            
+            # Update the .env file with HOST_IP and NGC_API_KEY (using different delimiter)
+            sed -i "s#HOST_IP=<your-server-ip>#HOST_IP=$HOST_IP#" "$SPORTS_UI_ENV"
+            sed -i "s#EXTERNAL_IP=<your-server-ip>#EXTERNAL_IP=$HOST_IP#" "$SPORTS_UI_ENV"
+            sed -i "s#INTERNAL_IP=<your-server-ip>#INTERNAL_IP=$HOST_IP#" "$SPORTS_UI_ENV"
+            sed -i "s#NGC_API_KEY=<your-ngc-api-key>#NGC_API_KEY=$NGC_API_KEY#" "$SPORTS_UI_ENV"
         else
             print_error ".env.template not found"
             exit 1
         fi
+    else
+        # Update existing .env file
+        sed -i "s#HOST_IP=<your-server-ip>#HOST_IP=$HOST_IP#" "$SPORTS_UI_ENV"
+        sed -i "s#EXTERNAL_IP=<your-server-ip>#EXTERNAL_IP=$HOST_IP#" "$SPORTS_UI_ENV"
+        sed -i "s#INTERNAL_IP=<your-server-ip>#INTERNAL_IP=$HOST_IP#" "$SPORTS_UI_ENV"
+        sed -i "s#NGC_API_KEY=<your-ngc-api-key>#NGC_API_KEY=$NGC_API_KEY#" "$SPORTS_UI_ENV"
     fi
-    
-    # Update the .env file with HOST_IP and NGC_API_KEY
-    sed -i "s/^HOST_IP=.*/HOST_IP=$HOST_IP/" "$SPORTS_UI_ENV"
-    sed -i "s/^NGC_API_KEY=.*/NGC_API_KEY=$NGC_API_KEY/" "$SPORTS_UI_ENV"
     
     print_success "Configured vss-sports-ui/.env"
 
