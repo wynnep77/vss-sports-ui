@@ -298,6 +298,7 @@ EOF
         sed -i "s#NGC_CLI_API_KEY=\${NGC_CLI_API_KEY:-}#NGC_CLI_API_KEY=$NGC_API_KEY#" "$OVERRIDES_ENV"
         sed -i "s#NVIDIA_API_KEY=\${NVIDIA_API_KEY:-}#NVIDIA_API_KEY=$NGC_API_KEY#" "$OVERRIDES_ENV"
         sed -i "s#HARDWARE_PROFILE=H100#HARDWARE_PROFILE=RTXPRO6000BW#" "$OVERRIDES_ENV"
+        sed -i "s#LLM_DEVICE_ID='0'#LLM_DEVICE_ID='1'#" "$OVERRIDES_ENV"
         sed -i "s#VSS_PUBLIC_HOST=\${EXTERNAL_IP}#VSS_PUBLIC_HOST=$HOST_IP#" "$OVERRIDES_ENV"
         sed -i "s#VST_EXTERNAL_URL=\${VSS_PUBLIC_HTTP_PROTOCOL}://\${VSS_PUBLIC_HOST}:\${VSS_PUBLIC_PORT}#VST_EXTERNAL_URL=http://$HOST_IP:7777#" "$OVERRIDES_ENV"
         sed -i "s#VST_BASE_URL=\${VST_EXTERNAL_URL}#VST_BASE_URL=http://$HOST_IP:7777#" "$OVERRIDES_ENV"
@@ -313,7 +314,7 @@ EOF
         cat > "$OVERRIDES_ENV" << EOF
 COMPOSE_PROJECT_NAME=vss
 HARDWARE_PROFILE=RTXPRO6000BW
-LLM_DEVICE_ID='0'
+LLM_DEVICE_ID='1'
 VLM_DEVICE_ID='0'
 RT_VLM_DEVICE_ID='0'
 LLM_MODE=local_shared
@@ -586,8 +587,8 @@ deploy_vss_backend() {
     export HARDWARE_PROFILE="RTXPRO6000BW"
     export LLM_MODE="local_shared"
     export VLM_MODE="local_shared"
-    export LLM_DEVICE_ID='0'
-    export VLM_DEVICE_ID='0'
+    export LLM_DEVICE_ID='1'  # Use GPU 1 for 30b model (more resources)
+    export VLM_DEVICE_ID='0'  # Use GPU 0 for VLM
     export RT_VLM_DEVICE_ID='0'
     
     # Explicitly prevent driver installation
