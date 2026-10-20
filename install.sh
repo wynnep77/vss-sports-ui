@@ -273,12 +273,24 @@ configure_all_env_files() {
             print_info "Found config.yml at: $FOUND_CONFIG"
             VSS_AGENT_CONFIG_FILE="$FOUND_CONFIG"
         else
-            print_error "config.yml not found in VSS Blueprint"
-            print_info "Searched in: $VSS_DIR"
-            print_error "The dev-profile-base deployment files appear to be incomplete"
-            print_info "Please restore the dev-profile-base deployment files from the VSS Blueprint"
-            print_info "Or check if the config file exists in a different location"
-            exit 1
+            # If still not found, try to find ANY config.yml in the VSS Blueprint
+            print_warning "config.yml not found in vss-agent/configs/*"
+            print_info "Searching for ANY config.yml in VSS Blueprint..."
+            ANY_CONFIG=$(find "$VSS_DIR" -name "config.yml" 2>/dev/null | head -5)
+            
+            if [ -n "$ANY_CONFIG" ]; then
+                print_info "Found config.yml at alternative location:"
+                echo "$ANY_CONFIG"
+                print_warning "Using first found config.yml (may not be the correct one)"
+                VSS_AGENT_CONFIG_FILE=$(echo "$ANY_CONFIG" | head -1)
+            else
+                print_error "config.yml not found anywhere in VSS Blueprint"
+                print_info "Searched in: $VSS_DIR"
+                print_error "The VSS Blueprint appears to be incomplete or missing configuration files"
+                print_info "Please ensure the VSS Blueprint is properly cloned from the official repository"
+                print_info "Repository: https://github.com/NVIDIA-AI-IOT/vss"
+                exit 1
+            fi
         fi
     fi
 
