@@ -92,6 +92,19 @@ check_gpu() {
     if check_command nvidia-smi; then
         print_success "NVIDIA driver detected"
         nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
+        
+        # Store current driver version for verification later
+        CURRENT_DRIVER_VERSION=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -1)
+        print_info "Current driver version: $CURRENT_DRIVER_VERSION"
+        
+        # Store current kernel version for verification later
+        CURRENT_KERNEL_VERSION=$(uname -r)
+        print_info "Current kernel version: $CURRENT_KERNEL_VERSION"
+        
+        # Export these for later verification
+        export CURRENT_DRIVER_VERSION
+        export CURRENT_KERNEL_VERSION
+        
         return 0
     else
         print_error "NVIDIA driver not found. Please install NVIDIA drivers first."
@@ -692,6 +705,32 @@ deploy_sports_frontend() {
 verify_deployment() {
     print_header "Verifying Deployment"
 
+    # Verify driver and kernel versions haven't changed
+    print_info "Verifying driver and kernel versions..."
+    if [ -n "$CURRENT_DRIVER_VERSION" ]; then
+        CURRENT_DRIVER_AFTER=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -1)
+        if [ "$CURRENT_DRIVER_VERSION" != "$CURRENT_DRIVER_AFTER" ]; then
+            print_error "NVIDIA driver version changed!"
+            print_info "Before: $CURRENT_DRIVER_VERSION"
+            print_info "After: $CURRENT_DRIVER_AFTER"
+            print_warning "This should not have happened. Please investigate."
+        else
+            print_success "NVIDIA driver version unchanged: $CURRENT_DRIVER_VERSION"
+        fi
+    fi
+
+    if [ -n "$CURRENT_KERNEL_VERSION" ]; then
+        CURRENT_KERNEL_AFTER=$(uname -r)
+        if [ "$CURRENT_KERNEL_VERSION" != "$CURRENT_KERNEL_AFTER" ]; then
+            print_error "Kernel version changed!"
+            print_info "Before: $CURRENT_KERNEL_VERSION"
+            print_info "After: $CURRENT_KERNEL_AFTER"
+            print_warning "This should not have happened. Please investigate."
+        else
+            print_success "Kernel version unchanged: $CURRENT_KERNEL_VERSION"
+        fi
+    fi
+
     print_info "Checking VSS Agent..."
     if curl -s http://localhost:8000/health > /dev/null 2>&1; then
         print_success "VSS Agent is running on port 8000"
@@ -716,6 +755,10 @@ print_summary() {
     echo -e "${GREEN}✓ VSS Backend: http://$HOST_IP:8000${NC}"
     echo -e "${GREEN}✓ Sports UI: http://$HOST_IP${NC}"
     echo ""
+    echo -e "${BLUE}System Configuration Preserved:${NC}"
+    echo -e "  NVIDIA Driver: $CURRENT_DRIVER_VERSION"
+    echo -e "  Kernel: $CURRENT_KERNEL_VERSION"
+    echo ""
     echo -e "${BLUE}Useful Commands:${NC}"
     echo "  View VSS logs:    cd $INSTALL_DIR/video-search-and-summarization/deploy/docker && docker-compose logs -f"
     echo "  View UI logs:      docker logs -f vss-sports-ui"
@@ -725,6 +768,8 @@ print_summary() {
     echo ""
     echo -e "${YELLOW}Note: First-time deployment may take additional time as models are downloaded.${NC}"
     echo -e "${YELLOW}Monitor the VSS logs to see when models are fully loaded.${NC}"
+    echo ""
+    echo -e "${YELLOW}IMPORTANT: NVIDIA drivers and kernel were NOT modified during installation${NC}"
 }
 
 ################################################################################
