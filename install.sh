@@ -367,6 +367,14 @@ EOF
             print_info "Added VSS_AGENT_CONFIG_FILE to overrides.env"
         fi
         
+        # Add tmp directory variables to overrides.env
+        if ! grep -q "^TMPDIR=" "$OVERRIDES_ENV"; then
+            echo "TMPDIR=/tmp" >> "$OVERRIDES_ENV"
+            echo "TEMP=/tmp" >> "$OVERRIDES_ENV"
+            echo "TMP=/tmp" >> "$OVERRIDES_ENV"
+            print_info "Added tmp directory variables to overrides.env"
+        fi
+        
         print_success "Configured overrides.env"
     else
         print_warning "overrides.env not found at $OVERRIDES_ENV"
@@ -740,6 +748,9 @@ VSS_APPS_DIR=$VSS_APPS_DIR
 VSS_DATA_DIR=$VSS_DATA_DIR
 HOST_IP=$HOST_IP
 VSS_AGENT_CONFIG_FILE=$PROFILE_DIR/vss-agent/configs/config.yml
+TMPDIR=/tmp
+TEMP=/tmp
+TMP=/tmp
 EOF
     print_success "Created .env file in deploy/docker directory"
     print_info "Contents:"
@@ -762,6 +773,12 @@ EOF
     else
         print_success "Config file exists at $PROFILE_DIR/vss-agent/configs/config.yml"
     fi
+    
+    # Ensure tmp directory exists and is writable
+    print_info "Ensuring tmp directory exists..."
+    mkdir -p /tmp
+    chmod 777 /tmp
+    print_success "Tmp directory is ready"
     
     # Create local directories for data storage (as fallback for volume mounting issues)
     print_info "Creating local data directories as fallback..."
@@ -789,6 +806,11 @@ EOF
     export LLM_DEVICE_ID='1'  # Use GPU 1 for 30b model (more resources)
     export VLM_DEVICE_ID='0'  # Use GPU 0 for VLM
     export RT_VLM_DEVICE_ID='0'
+    
+    # Set tmp directory for containers
+    export TMPDIR=/tmp
+    export TEMP=/tmp
+    export TMP=/tmp
     
     # Explicitly prevent driver installation
     export SKIP_DRIVER_INSTALL=true
