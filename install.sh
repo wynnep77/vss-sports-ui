@@ -490,34 +490,43 @@ install_docker() {
     if [ -n "$DOCKER_DATA_DIR" ]; then
         print_info "Docker data directory: $DOCKER_DATA_DIR"
         
-        # If Docker is using /mnt/docker, try to fix it
+        # If Docker is using /mnt/docker, reconfigure to use standard path
         if echo "$DOCKER_DATA_DIR" | grep -q "/mnt/docker"; then
-            print_warning "Docker is using /mnt/docker which may cause volume mounting issues"
-            print_info "Attempting to fix Docker configuration..."
+            print_warning "Docker is using /mnt/docker which causes volume mounting issues"
+            print_info "Reconfiguring Docker to use standard /var/lib/docker path..."
             
-            # Create the directory if it doesn't exist
-            if [ ! -d "$DOCKER_DATA_DIR" ]; then
-                print_info "Creating Docker data directory: $DOCKER_DATA_DIR"
-                sudo mkdir -p "$DOCKER_DATA_DIR"
-                sudo chmod 755 "$DOCKER_DATA_DIR"
+            # Stop Docker
+            sudo systemctl stop docker
+            
+            # Create or update Docker daemon configuration
+            sudo mkdir -p /etc/docker
+            sudo tee /etc/docker/daemon.json > /dev/null << 'EOF'
+{
+  "data-root": "/var/lib/docker"
+}
+EOF
+            
+            # Ensure standard Docker directory exists
+            sudo mkdir -p /var/lib/docker
+            sudo chmod 755 /var/lib/docker
+            sudo chown -R root:root /var/lib/docker
+            
+            # Start Docker with new configuration
+            sudo systemctl start docker
+            
+            # Wait for Docker to start
+            sleep 5
+            
+            # Verify the change
+            NEW_DOCKER_DATA_DIR=$(docker info 2>/dev/null | grep "Docker Root Dir" | awk '{print $3}')
+            print_info "New Docker data directory: $NEW_DOCKER_DATA_DIR"
+            
+            if echo "$NEW_DOCKER_DATA_DIR" | grep -q "/mnt/docker"; then
+                print_error "Failed to reconfigure Docker data directory"
+                print_info "Manual intervention may be required"
+            else
+                print_success "Docker reconfigured to use standard path"
             fi
-            
-            # Ensure proper ownership
-            sudo chown -R root:root "$DOCKER_DATA_DIR"
-            
-            # Create the volumes subdirectory
-            if [ ! -d "$DOCKER_DATA_DIR/volumes" ]; then
-                print_info "Creating Docker volumes directory: $DOCKER_DATA_DIR/volumes"
-                sudo mkdir -p "$DOCKER_DATA_DIR/volumes"
-                sudo chmod 755 "$DOCKER_DATA_DIR/volumes"
-                sudo chown -R root:root "$DOCKER_DATA_DIR/volumes"
-            fi
-            
-            # Create the _data subdirectory structure that Docker expects
-            print_info "Creating Docker volume metadata directories..."
-            sudo mkdir -p "$DOCKER_DATA_DIR/volumes/metadata"
-            sudo chmod 755 "$DOCKER_DATA_DIR/volumes/metadata"
-            sudo chown -R root:root "$DOCKER_DATA_DIR/volumes/metadata"
         fi
     fi
     
