@@ -250,20 +250,30 @@ configure_all_env_files() {
     VSS_AGENT_CONFIG_DIR="$PROFILE_DIR/vss-agent/configs"
     VSS_AGENT_CONFIG_FILE=""
     
-    # Search for config.yml in the VSS Blueprint
+    # Search for config.yml in the VSS Blueprint, preferring dev-profile-base
     print_info "Searching for vss-agent config.yml in VSS Blueprint..."
-    FOUND_CONFIG=$(find "$VSS_DIR" -name "config.yml" -path "*/vss-agent/configs/*" 2>/dev/null | head -1)
     
-    if [ -n "$FOUND_CONFIG" ]; then
-        print_info "Found config.yml at: $FOUND_CONFIG"
-        VSS_AGENT_CONFIG_FILE="$FOUND_CONFIG"
+    # First, try to find it in the current profile directory (dev-profile-base)
+    if [ -f "$PROFILE_DIR/vss-agent/configs/config.yml" ]; then
+        VSS_AGENT_CONFIG_FILE="$PROFILE_DIR/vss-agent/configs/config.yml"
+        print_info "Found config.yml in current profile: $VSS_AGENT_CONFIG_FILE"
     else
-        print_error "config.yml not found in VSS Blueprint"
-        print_info "Searched in: $VSS_DIR"
-        print_error "The dev-profile-base deployment files appear to be incomplete"
-        print_info "Please restore the dev-profile-base deployment files from the VSS Blueprint"
-        print_info "Or check if the config file exists in a different location"
-        exit 1
+        # If not found in current profile, search in other locations but exclude dev-profile-lvs
+        print_warning "config.yml not found in current profile directory"
+        print_info "Searching in other locations (excluding dev-profile-lvs)..."
+        FOUND_CONFIG=$(find "$VSS_DIR" -name "config.yml" -path "*/vss-agent/configs/*" -not -path "*/dev-profile-lvs/*" 2>/dev/null | head -1)
+        
+        if [ -n "$FOUND_CONFIG" ]; then
+            print_info "Found config.yml at: $FOUND_CONFIG"
+            VSS_AGENT_CONFIG_FILE="$FOUND_CONFIG"
+        else
+            print_error "config.yml not found in VSS Blueprint"
+            print_info "Searched in: $VSS_DIR"
+            print_error "The dev-profile-base deployment files appear to be incomplete"
+            print_info "Please restore the dev-profile-base deployment files from the VSS Blueprint"
+            print_info "Or check if the config file exists in a different location"
+            exit 1
+        fi
     fi
 
     # Configure dev-profile-base .env
@@ -377,6 +387,7 @@ EOF
             echo "TMPDIR=/tmp" >> "$OVERRIDES_ENV"
             echo "TEMP=/tmp" >> "$OVERRIDES_ENV"
             echo "TMP=/tmp" >> "$OVERRIDES_ENV"
+            echo "XDG_RUNTIME_DIR=/tmp" >> "$OVERRIDES_ENV"
             print_info "Added tmp directory variables to overrides.env"
         fi
         
@@ -758,6 +769,7 @@ VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE
 TMPDIR=/tmp
 TEMP=/tmp
 TMP=/tmp
+XDG_RUNTIME_DIR=/tmp
 EOF
     print_success "Created .env file in deploy/docker directory"
     print_info "Contents:"
@@ -765,9 +777,53 @@ EOF
     
     # Ensure tmp directory exists and is writable
     print_info "Ensuring tmp directory exists..."
-    mkdir -p /tmp
-    chmod 777 /tmp
+    mkdir -p /tmp /var/tmp /usr/tmp
+    chmod 777 /tmp /var/tmp /usr/tmp
     print_success "Tmp directory is ready"
+    
+    # Verify the config file path doesn't point to wrong profile (e.g., dev-profile-lvs)
+    if echo "$VSS_AGENT_CONFIG_FILE" | grep -q "dev-profile-lvs"; then
+        print_warning "Config file path points to dev-profile-lvs (wrong profile)"
+        print_info "Searching for config.yml in dev-profile-base instead..."
+        FOUND_CONFIG=$(find "$VSS_DIR" -name "config.yml" -path "*/dev-profile-base/vss-agent/configs/*" 2>/dev/null | head -1)
+        if [ -n "$FOUND_CONFIG" ]; then
+            VSS_AGENT_CONFIG_FILE="$FOUND_CONFIG"
+            print_info "Using config from dev-profile-base: $VSS_AGENT_CONFIG_FILE"
+        else
+            print_error "Could not find config.yml in dev-profile-base"
+            exit 1
+        fi
+    fi
+    
+    # Recreate .env file with updated config path if it was changed
+    if [ -f .env ]; then
+        print_info "Updating .env file with correct config path..."
+        cat > .env << EOF
+VSS_APPS_DIR=$VSS_APPS_DIR
+VSS_DATA_DIR=$VSS_DATA_DIR
+HOST_IP=$HOST_IP
+VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE
+TMPDIR=/tmp
+TEMP=/tmp
+TMP=/tmp
+XDG_RUNTIME_DIR=/tmp
+EOF
+        print_success "Updated .env file"
+    fi
+    
+    # Update overrides.env with correct config path if it was changed
+    if [ -f "$OVERRIDES_ENV" ]; then
+        print_info "Updating overrides.env with correct config path..."
+        sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE|" "$OVERRIDES_ENV"
+        print_success "Updated overrides.env"
+    fi
+    
+    # Update PROFILE_ENV with correct config path if it was changed
+    if [ -f "$PROFILE_ENV" ]; then
+        print_info "Updating PROFILE_ENV with correct config path..."
+        sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE|" "$PROFILE_ENV"
+        print_success "Updated PROFILE_ENV"
+    fi
     
     # Create local directories for data storage (as fallback for volume mounting issues)
     print_info "Creating local data directories as fallback..."
@@ -800,6 +856,7 @@ EOF
     export TMPDIR=/tmp
     export TEMP=/tmp
     export TMP=/tmp
+    export XDG_RUNTIME_DIR=/tmp
     
     # Explicitly prevent driver installation
     export SKIP_DRIVER_INSTALL=true
