@@ -252,6 +252,7 @@ configure_all_env_files() {
     
     # Search for config.yml in the VSS Blueprint, preferring dev-profile-base
     print_info "Searching for vss-agent config.yml in VSS Blueprint..."
+    print_info "Profile directory: $PROFILE_DIR"
     
     # First, try to find it in the current profile directory (dev-profile-base)
     if [ -f "$PROFILE_DIR/vss-agent/configs/config.yml" ]; then
@@ -261,6 +262,11 @@ configure_all_env_files() {
         # If not found in current profile, search in other locations but exclude dev-profile-lvs
         print_warning "config.yml not found in current profile directory"
         print_info "Searching in other locations (excluding dev-profile-lvs)..."
+        
+        # List all config.yml files found for debugging
+        print_info "All config.yml files found in VSS Blueprint:"
+        find "$VSS_DIR" -name "config.yml" -path "*/vss-agent/configs/*" 2>/dev/null | head -10
+        
         FOUND_CONFIG=$(find "$VSS_DIR" -name "config.yml" -path "*/vss-agent/configs/*" -not -path "*/dev-profile-lvs/*" 2>/dev/null | head -1)
         
         if [ -n "$FOUND_CONFIG" ]; then
@@ -782,6 +788,7 @@ EOF
     print_success "Tmp directory is ready"
     
     # Verify the config file path doesn't point to wrong profile (e.g., dev-profile-lvs)
+    print_info "Current VSS_AGENT_CONFIG_FILE: $VSS_AGENT_CONFIG_FILE"
     if echo "$VSS_AGENT_CONFIG_FILE" | grep -q "dev-profile-lvs"; then
         print_warning "Config file path points to dev-profile-lvs (wrong profile)"
         print_info "Searching for config.yml in dev-profile-base instead..."
@@ -809,6 +816,8 @@ TMP=/tmp
 XDG_RUNTIME_DIR=/tmp
 EOF
         print_success "Updated .env file"
+        print_info "Contents of .env file:"
+        cat .env
     fi
     
     # Update overrides.env with correct config path if it was changed
@@ -816,6 +825,8 @@ EOF
         print_info "Updating overrides.env with correct config path..."
         sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE|" "$OVERRIDES_ENV"
         print_success "Updated overrides.env"
+        print_info "VSS_AGENT_CONFIG_FILE in overrides.env:"
+        grep "^VSS_AGENT_CONFIG_FILE=" "$OVERRIDES_ENV" || print_warning "Not found in overrides.env"
     fi
     
     # Update PROFILE_ENV with correct config path if it was changed
@@ -823,6 +834,8 @@ EOF
         print_info "Updating PROFILE_ENV with correct config path..."
         sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE|" "$PROFILE_ENV"
         print_success "Updated PROFILE_ENV"
+        print_info "VSS_AGENT_CONFIG_FILE in PROFILE_ENV:"
+        grep "^VSS_AGENT_CONFIG_FILE=" "$PROFILE_ENV" || print_warning "Not found in PROFILE_ENV"
     fi
     
     # Create local directories for data storage (as fallback for volume mounting issues)
