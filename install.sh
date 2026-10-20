@@ -246,9 +246,54 @@ configure_all_env_files() {
     print_info "Files in profile directory:"
     ls -la "$PROFILE_DIR" 2>/dev/null || print_warning "Cannot list directory contents"
 
+    # Check if vss-agent config file exists and update path if needed
+    VSS_AGENT_CONFIG_DIR="$PROFILE_DIR/vss-agent/configs"
+    if [ -d "$VSS_AGENT_CONFIG_DIR" ]; then
+        print_info "Found vss-agent config directory: $VSS_AGENT_CONFIG_DIR"
+        # The config file path should be relative to the container mount
+        # Update it to use the correct path
+        if [ -f "$VSS_AGENT_CONFIG_DIR/config.yml" ]; then
+            print_info "Found config.yml at $VSS_AGENT_CONFIG_DIR/config.yml"
+        else
+            print_warning "config.yml not found at $VSS_AGENT_CONFIG_DIR/config.yml"
+        fi
+    else
+        print_warning "vss-agent config directory not found at $VSS_AGENT_CONFIG_DIR"
+    fi
+
     # Configure dev-profile-base .env
     if [ -f "$PROFILE_ENV" ]; then
         cp "$PROFILE_ENV" "${PROFILE_ENV}.backup"
+        
+        # Update VSS_AGENT_CONFIG_FILE to use the correct path
+        if grep -q "^VSS_AGENT_CONFIG_FILE=" "$PROFILE_ENV"; then
+            sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=$PROFILE_DIR/vss-agent/configs/config.yml|" "$PROFILE_ENV"
+            print_info "Updated VSS_AGENT_CONFIG_FILE in existing .env"
+        fi
+        
+        # Update EVAL_DIR to use the correct path
+        if grep -q "^EVAL_DIR=" "$PROFILE_ENV"; then
+            sed -i "s|^EVAL_DIR=.*|EVAL_DIR=$PROFILE_DIR/eval/|" "$PROFILE_ENV"
+            print_info "Updated EVAL_DIR in existing .env"
+        fi
+        
+        # Update DATASET_DIR to use the correct path
+        if grep -q "^DATASET_DIR=" "$PROFILE_ENV"; then
+            sed -i "s|^DATASET_DIR=.*|DATASET_DIR=$PROFILE_DIR/agent_eval/dataset/vss-devx-base|" "$PROFILE_ENV"
+            print_info "Updated DATASET_DIR in existing .env"
+        fi
+        
+        # Update REPORT_REFERENCE_BASE_DIR to use the correct path
+        if grep -q "^REPORT_REFERENCE_BASE_DIR=" "$PROFILE_ENV"; then
+            sed -i "s|^REPORT_REFERENCE_BASE_DIR=.*|REPORT_REFERENCE_BASE_DIR=$PROFILE_DIR/agent_eval/dataset/vss-devx-base/gt|" "$PROFILE_ENV"
+            print_info "Updated REPORT_REFERENCE_BASE_DIR in existing .env"
+        fi
+        
+        # Update EVAL_OUTPUT_DIR to use the correct path
+        if grep -q "^EVAL_OUTPUT_DIR=" "$PROFILE_ENV"; then
+            sed -i "s|^EVAL_OUTPUT_DIR=.*|EVAL_OUTPUT_DIR=$PROFILE_DIR/agent_eval/results|" "$PROFILE_ENV"
+            print_info "Updated EVAL_OUTPUT_DIR in existing .env"
+        fi
         
         # The .env file has static defaults, no user-specific variables needed
         print_success "Configured dev-profile-base/.env (using static defaults)"
@@ -258,7 +303,7 @@ configure_all_env_files() {
         
         # Create the .env file with required variables from official VSS Blueprint
         # Note: Use literal values so docker-compose can read them directly
-        cat > "$PROFILE_ENV" << 'EOF'
+        cat > "$PROFILE_ENV" << EOF
 MODE=2d
 RTVI_VLM_MAX_MODEL_LEN=''
 BP_PROFILE=bp_developer_base
@@ -266,7 +311,7 @@ RESERVED_DEVICE_IDS=''
 FIXED_SHARED_DEVICE_IDS=''
 ELASTICSEARCH_ILM_MIN_AGE=4h
 STREAM_TYPE=kafka
-VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml
+VSS_AGENT_CONFIG_FILE=$PROFILE_DIR/vss-agent/configs/config.yml
 ENABLE_AUDIO=false
 NEXT_PUBLIC_APP_SUBTITLE="Vision (Base)"
 NEXT_PUBLIC_SIDEBAR_CHAT_WORKFLOW="VSS Agent"
@@ -279,11 +324,11 @@ NEXT_PUBLIC_ENABLE_DASHBOARD_TAB=false
 NEXT_PUBLIC_ENABLE_VIDEO_MANAGEMENT_TAB=true
 NEXT_PUBLIC_VIDEO_MANAGEMENT_VIDEO_UPLOAD_ENABLE=true
 NEXT_PUBLIC_VIDEO_MANAGEMENT_TAB_ADD_RTSP_ENABLE=false
-EVAL_DIR=deploy/docker/developer-profiles/dev-profile-base/eval/
-DATASET_DIR=agent_eval/dataset/vss-devx-base
+EVAL_DIR=$PROFILE_DIR/eval/
+DATASET_DIR=$PROFILE_DIR/agent_eval/dataset/vss-devx-base
 DATASET_FILE_NAME=dataset_single-turn.json
-REPORT_REFERENCE_BASE_DIR=/vss-agent/agent_eval/dataset/vss-devx-base/gt
-EVAL_OUTPUT_DIR=agent_eval/results
+REPORT_REFERENCE_BASE_DIR=$PROFILE_DIR/agent_eval/dataset/vss-devx-base/gt
+EVAL_OUTPUT_DIR=$PROFILE_DIR/agent_eval/results
 EOF
         
         print_success "Created .env file at $PROFILE_ENV"
