@@ -246,19 +246,22 @@ configure_all_env_files() {
     print_info "Files in profile directory:"
     ls -la "$PROFILE_DIR" 2>/dev/null || print_warning "Cannot list directory contents"
 
-    # Don't set VSS_AGENT_CONFIG_FILE - let VSS Blueprint use its default
-    # The VSS Blueprint will handle the config file path internally
-    print_info "VSS Blueprint will use default config file path"
-    VSS_AGENT_CONFIG_FILE=""
+    # Set VSS_AGENT_CONFIG_FILE to container path (not host path)
+    # The VSS agent expects the config file to be at a specific location in the container
+    print_info "Setting VSS_AGENT_CONFIG_FILE to container path"
+    VSS_AGENT_CONFIG_FILE="/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml"
 
     # Configure dev-profile-base .env
     if [ -f "$PROFILE_ENV" ]; then
         cp "$PROFILE_ENV" "${PROFILE_ENV}.backup"
         
-        # Remove VSS_AGENT_CONFIG_FILE if it exists (let VSS Blueprint use default)
+        # Set VSS_AGENT_CONFIG_FILE to container path
         if grep -q "^VSS_AGENT_CONFIG_FILE=" "$PROFILE_ENV"; then
-            sed -i "/^VSS_AGENT_CONFIG_FILE=/d" "$PROFILE_ENV"
-            print_info "Removed VSS_AGENT_CONFIG_FILE from .env (using VSS Blueprint default)"
+            sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml|" "$PROFILE_ENV"
+            print_info "Updated VSS_AGENT_CONFIG_FILE in .env to container path"
+        else
+            echo "VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml" >> "$PROFILE_ENV"
+            print_info "Added VSS_AGENT_CONFIG_FILE to .env (container path)"
         fi
         
         # Update EVAL_DIR to use the correct path
@@ -301,6 +304,7 @@ RESERVED_DEVICE_IDS=''
 FIXED_SHARED_DEVICE_IDS=''
 ELASTICSEARCH_ILM_MIN_AGE=4h
 STREAM_TYPE=kafka
+VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml
 ENABLE_AUDIO=false
 NEXT_PUBLIC_APP_SUBTITLE="Vision (Base)"
 NEXT_PUBLIC_SIDEBAR_CHAT_WORKFLOW="VSS Agent"
@@ -346,10 +350,13 @@ EOF
         sed -i "s#VSS_AGENT_REPORTS_BASE_URL=\${VSS_PUBLIC_HTTP_PROTOCOL}://\${VSS_PUBLIC_HOST}:\${VSS_PUBLIC_PORT}/static/#VSS_AGENT_REPORTS_BASE_URL=http://$HOST_IP:7777/static/#" "$OVERRIDES_ENV"
         sed -i "s#VSS_AGENT_EXTERNAL_URL=\${VSS_PUBLIC_HTTP_PROTOCOL}://\${VSS_PUBLIC_HOST}:\${VSS_PUBLIC_PORT}#VSS_AGENT_EXTERNAL_URL=http://$HOST_IP:7777#" "$OVERRIDES_ENV"
         
-        # Remove VSS_AGENT_CONFIG_FILE if it exists (let VSS Blueprint use default)
+        # Set VSS_AGENT_CONFIG_FILE to container path
         if grep -q "^VSS_AGENT_CONFIG_FILE=" "$OVERRIDES_ENV"; then
-            sed -i "/^VSS_AGENT_CONFIG_FILE=/d" "$OVERRIDES_ENV"
-            print_info "Removed VSS_AGENT_CONFIG_FILE from overrides.env (using VSS Blueprint default)"
+            sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml|" "$OVERRIDES_ENV"
+            print_info "Updated VSS_AGENT_CONFIG_FILE in overrides.env to container path"
+        else
+            echo "VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml" >> "$OVERRIDES_ENV"
+            print_info "Added VSS_AGENT_CONFIG_FILE to overrides.env (container path)"
         fi
         
         # Add tmp directory variables to overrides.env
@@ -390,6 +397,7 @@ VSS_APPS_DIR=$VSS_APPS_DIR
 VSS_DATA_DIR=$VSS_DIR/data
 HOST_IP='$HOST_IP'
 EXTERNAL_IP=$HOST_IP
+VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml
 HAPROXY_PORT=7777
 VSS_PUBLIC_HTTP_PROTOCOL=http
 VSS_PUBLIC_WS_PROTOCOL=ws
@@ -487,6 +495,7 @@ EOF
     export OVERRIDES_ENV
     export VSS_DIR
     export VSS_DATA_DIR
+    export VSS_AGENT_CONFIG_FILE
 
     # Print configuration summary
     print_info "Configuration paths:"
@@ -496,6 +505,7 @@ EOF
     print_info "  PROFILE_DIR: $PROFILE_DIR"
     print_info "  PROFILE_ENV: $PROFILE_ENV"
     print_info "  OVERRIDES_ENV: $OVERRIDES_ENV"
+    print_info "  VSS_AGENT_CONFIG_FILE: $VSS_AGENT_CONFIG_FILE (container path)"
 }
 
 ################################################################################
@@ -691,6 +701,7 @@ deploy_vss_backend() {
 VSS_APPS_DIR=$VSS_APPS_DIR
 VSS_DATA_DIR=$VSS_DATA_DIR
 HOST_IP=$HOST_IP
+VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml
 TMPDIR=/tmp
 TEMP=/tmp
 TMP=/tmp
