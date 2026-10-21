@@ -1290,6 +1290,11 @@ main() {
         print_info "Using VSS Blueprint backend"
         USE_OLLAMA=false
     fi
+    
+    print_info "USE_OLLAMA=$USE_OLLAMA"
+    
+    # Export USE_OLLAMA for use in functions
+    export USE_OLLAMA
 
     read -p "Continue? (y/n): " -n 1 -r
     echo
@@ -1332,11 +1337,13 @@ main() {
 
     # Step 8: Deploy Backend (VSS or Ollama)
     if [ "$USE_OLLAMA" = true ]; then
+        print_info "Skipping VSS Blueprint deployment (using Ollama instead)"
         if ! deploy_ollama_backend; then
             print_error "Ollama backend deployment failed"
             exit 1
         fi
     else
+        print_warning "Deploying VSS Blueprint - this may encounter issues"
         if ! deploy_vss_backend; then
             print_error "VSS backend deployment failed"
             exit 1
