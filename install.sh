@@ -800,9 +800,11 @@ deploy_ollama_backend() {
 
     # Start Ollama service on port 11435 (instead of default 11434)
     print_info "Starting Ollama service on port 11435..."
-    OLLAMA_HOST=127.0.0.1
     OLLAMA_PORT=11435
-    ollama serve --host $OLLAMA_HOST --port $OLLAMA_PORT &
+    OLLAMA_HOST=127.0.0.1
+    OLLAMA_ORIGINS="*"
+    # Use environment variables to set host and port
+    OLLAMA_HOST=$OLLAMA_HOST OLLAMA_PORT=$OLLAMA_PORT ollama serve &
     OLLAMA_PID=$!
     sleep 5
     print_success "Ollama service started on port $OLLAMA_PORT (PID: $OLLAMA_PID)"
