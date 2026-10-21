@@ -814,11 +814,27 @@ deploy_ollama_backend() {
 
     # Update Sports UI .env to use Ollama
     print_info "Updating Sports UI .env to use Ollama..."
-    sed -i "s|^VITE_API_BASE_URL=.*|VITE_API_BASE_URL=http://$HOST_IP:$OLLAMA_PORT/api/generate|" "$SPORTS_UI_ENV"
-    sed -i "s|^VITE_OLLAMA_ENABLED=.*|VITE_OLLAMA_ENABLED=true|" "$SPORTS_UI_ENV"
-    if ! grep -q "^VITE_OLLAMA_ENABLED=" "$SPORTS_UI_ENV"; then
+    
+    # Create .env file if it doesn't exist
+    if [ ! -f "$SPORTS_UI_ENV" ]; then
+        print_info "Creating .env file..."
+        touch "$SPORTS_UI_ENV"
+    fi
+    
+    # Update or add API base URL
+    if grep -q "^VITE_API_BASE_URL=" "$SPORTS_UI_ENV"; then
+        sed -i "s|^VITE_API_BASE_URL=.*|VITE_API_BASE_URL=http://$HOST_IP:$OLLAMA_PORT/api/generate|" "$SPORTS_UI_ENV"
+    else
+        echo "VITE_API_BASE_URL=http://$HOST_IP:$OLLAMA_PORT/api/generate" >> "$SPORTS_UI_ENV"
+    fi
+    
+    # Update or add Ollama enabled flag
+    if grep -q "^VITE_OLLAMA_ENABLED=" "$SPORTS_UI_ENV"; then
+        sed -i "s|^VITE_OLLAMA_ENABLED=.*|VITE_OLLAMA_ENABLED=true|" "$SPORTS_UI_ENV"
+    else
         echo "VITE_OLLAMA_ENABLED=true" >> "$SPORTS_UI_ENV"
     fi
+    
     print_success "Sports UI configured to use Ollama on port $OLLAMA_PORT"
 
     print_success "Ollama backend deployed"
@@ -1340,6 +1356,11 @@ main() {
     # Step 8: Deploy Backend (VSS or Ollama)
     if [ "$USE_OLLAMA" = true ]; then
         print_info "Skipping VSS Blueprint deployment (using Ollama instead)"
+        
+        # Set Sports UI directory and .env path for Ollama
+        SPORTS_UI_DIR="$INSTALL_DIR/vss-sports-ui"
+        SPORTS_UI_ENV="$SPORTS_UI_DIR/.env"
+        
         if ! deploy_ollama_backend; then
             print_error "Ollama backend deployment failed"
             exit 1
