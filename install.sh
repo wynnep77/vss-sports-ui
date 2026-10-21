@@ -264,6 +264,21 @@ configure_all_env_files() {
             print_info "Added VSS_AGENT_CONFIG_FILE to .env (container path)"
         fi
         
+        # Set tmp directory variables
+        if grep -q "^TMPDIR=" "$PROFILE_ENV"; then
+            sed -i "s|^TMPDIR=.*|TMPDIR=$VSS_DIR/data/tmp|" "$PROFILE_ENV"
+            sed -i "s|^TEMP=.*|TEMP=$VSS_DIR/data/tmp|" "$PROFILE_ENV"
+            sed -i "s|^TMP=.*|TMP=$VSS_DIR/data/tmp|" "$PROFILE_ENV"
+            sed -i "s|^XDG_RUNTIME_DIR=.*|XDG_RUNTIME_DIR=$VSS_DIR/data/tmp|" "$PROFILE_ENV"
+            print_info "Updated tmp directory variables in .env"
+        else
+            echo "TMPDIR=$VSS_DIR/data/tmp" >> "$PROFILE_ENV"
+            echo "TEMP=$VSS_DIR/data/tmp" >> "$PROFILE_ENV"
+            echo "TMP=$VSS_DIR/data/tmp" >> "$PROFILE_ENV"
+            echo "XDG_RUNTIME_DIR=$VSS_DIR/data/tmp" >> "$PROFILE_ENV"
+            print_info "Added tmp directory variables to .env"
+        fi
+        
         # Update EVAL_DIR to use the correct path
         if grep -q "^EVAL_DIR=" "$PROFILE_ENV"; then
             sed -i "s|^EVAL_DIR=.*|EVAL_DIR=$PROFILE_DIR/eval/|" "$PROFILE_ENV"
@@ -305,6 +320,10 @@ FIXED_SHARED_DEVICE_IDS=''
 ELASTICSEARCH_ILM_MIN_AGE=4h
 STREAM_TYPE=kafka
 VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml
+TMPDIR=$VSS_DIR/data/tmp
+TEMP=$VSS_DIR/data/tmp
+TMP=$VSS_DIR/data/tmp
+XDG_RUNTIME_DIR=$VSS_DIR/data/tmp
 ENABLE_AUDIO=false
 NEXT_PUBLIC_APP_SUBTITLE="Vision (Base)"
 NEXT_PUBLIC_SIDEBAR_CHAT_WORKFLOW="VSS Agent"
@@ -361,10 +380,10 @@ EOF
         
         # Add tmp directory variables to overrides.env
         if ! grep -q "^TMPDIR=" "$OVERRIDES_ENV"; then
-            echo "TMPDIR=/tmp" >> "$OVERRIDES_ENV"
-            echo "TEMP=/tmp" >> "$OVERRIDES_ENV"
-            echo "TMP=/tmp" >> "$OVERRIDES_ENV"
-            echo "XDG_RUNTIME_DIR=/tmp" >> "$OVERRIDES_ENV"
+            echo "TMPDIR=$VSS_DIR/data/tmp" >> "$OVERRIDES_ENV"
+            echo "TEMP=$VSS_DIR/data/tmp" >> "$OVERRIDES_ENV"
+            echo "TMP=$VSS_DIR/data/tmp" >> "$OVERRIDES_ENV"
+            echo "XDG_RUNTIME_DIR=$VSS_DIR/data/tmp" >> "$OVERRIDES_ENV"
             print_info "Added tmp directory variables to overrides.env"
         fi
         
@@ -398,6 +417,10 @@ VSS_DATA_DIR=$VSS_DIR/data
 HOST_IP='$HOST_IP'
 EXTERNAL_IP=$HOST_IP
 VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml
+TMPDIR=$VSS_DIR/data/tmp
+TEMP=$VSS_DIR/data/tmp
+TMP=$VSS_DIR/data/tmp
+XDG_RUNTIME_DIR=$VSS_DIR/data/tmp
 HAPROXY_PORT=7777
 VSS_PUBLIC_HTTP_PROTOCOL=http
 VSS_PUBLIC_WS_PROTOCOL=ws
@@ -702,10 +725,10 @@ VSS_APPS_DIR=$VSS_APPS_DIR
 VSS_DATA_DIR=$VSS_DATA_DIR
 HOST_IP=$HOST_IP
 VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml
-TMPDIR=/tmp
-TEMP=/tmp
-TMP=/tmp
-XDG_RUNTIME_DIR=/tmp
+TMPDIR=$VSS_DIR/data/tmp
+TEMP=$VSS_DIR/data/tmp
+TMP=$VSS_DIR/data/tmp
+XDG_RUNTIME_DIR=$VSS_DIR/data/tmp
 EOF
     print_success "Created .env file in deploy/docker directory"
     print_info "Contents:"
@@ -717,9 +740,11 @@ EOF
     chmod 777 /tmp /var/tmp /usr/tmp
     print_success "Tmp directory is ready"
     
-    # VSS Blueprint will handle config file path internally
-    
-    # VSS Blueprint will handle config file path internally
+    # Create tmp directory in VSS data directory for container use
+    print_info "Creating tmp directory in VSS data directory..."
+    mkdir -p "$VSS_DATA_DIR/tmp"
+    chmod 777 "$VSS_DATA_DIR/tmp"
+    print_success "Created $VSS_DATA_DIR/tmp"
     
     # Create local directories for data storage (as fallback for volume mounting issues)
     print_info "Creating local data directories as fallback..."
@@ -749,10 +774,10 @@ EOF
     export RT_VLM_DEVICE_ID='0'
     
     # Set tmp directory for containers
-    export TMPDIR=/tmp
-    export TEMP=/tmp
-    export TMP=/tmp
-    export XDG_RUNTIME_DIR=/tmp
+    export TMPDIR=$VSS_DIR/data/tmp
+    export TEMP=$VSS_DIR/data/tmp
+    export TMP=$VSS_DIR/data/tmp
+    export XDG_RUNTIME_DIR=$VSS_DIR/data/tmp
     
     # Explicitly prevent driver installation
     export SKIP_DRIVER_INSTALL=true
