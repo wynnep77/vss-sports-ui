@@ -1276,14 +1276,14 @@ main() {
     
     echo "Backend options:"
     echo "  1. VSS Blueprint (requires NGC API key, includes VSS agent)"
-    echo "  2. Ollama (local LLM, no NGC key required)"
+    echo "  2. Ollama (local LLM, no NGC key required) - RECOMMENDED"
     echo ""
     
-    read -p "Select backend (1 or 2): " -n 1 -r
+    read -p "Select backend (1 or 2, default 2): " -n 1 -r
     echo
-    BACKEND_CHOICE=$REPLY
+    BACKEND_CHOICE=${REPLY:-2}
     
-    if [ "$BACKEND_CHOICE" = "2" ]; then
+    if [ "$BACKEND_CHOICE" = "2" ] || [ -z "$BACKEND_CHOICE" ]; then
         print_info "Using Ollama backend - VSS Blueprint will be skipped"
         USE_OLLAMA=true
     else
@@ -1312,17 +1312,23 @@ main() {
     # Step 3: Install system dependencies
     install_dependencies
 
-    # Step 4: Clone VSS Blueprint (must be done before configuring env files)
-    setup_vss_blueprint
+    # Step 4: Clone VSS Blueprint (only if not using Ollama)
+    if [ "$USE_OLLAMA" = false ]; then
+        # Step 4: Clone VSS Blueprint (must be done before configuring env files)
+        setup_vss_blueprint
 
-    # Step 5: Prompt for API keys
-    prompt_api_keys
+        # Step 5: Prompt for API keys
+        prompt_api_keys
 
-    # Step 6: Detect host IP
-    detect_host_ip
+        # Step 6: Detect host IP
+        detect_host_ip
 
-    # Step 7: Configure all .env files (now VSS Blueprint is cloned)
-    configure_all_env_files
+        # Step 7: Configure all .env files (now VSS Blueprint is cloned)
+        configure_all_env_files
+    else
+        # For Ollama, just detect host IP
+        detect_host_ip
+    fi
 
     # Step 8: Deploy Backend (VSS or Ollama)
     if [ "$USE_OLLAMA" = true ]; then
@@ -1344,7 +1350,17 @@ main() {
     deploy_sports_frontend
 
     # Step 11: Verify deployment
-    verify_deployment
+    if [ "$USE_OLLAMA" = true ]; then
+        print_header "Verifying Ollama Deployment"
+        print_info "Checking Ollama service..."
+        if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+            print_success "Ollama is running on port 11434"
+        else
+            print_warning "Ollama may not be responding"
+        fi
+    else
+        verify_deployment
+    fi
 
     # Step 12: Print summary
     print_summary
