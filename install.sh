@@ -1127,13 +1127,13 @@ deploy_sports_frontend() {
     print_info "Starting Sports UI container..."
     docker run -d \
         --name vss-sports-ui \
-        -p 80:80 \
+        -p 8080:80 \
         -e VITE_API_BASE_URL=http://$HOST_IP:8000 \
         --add-host=host.docker.internal:host-gateway \
         --restart unless-stopped \
         vss-sports-ui:latest
 
-    print_success "Sports UI deployed on port 80"
+    print_success "Sports UI deployed on port 8080"
 }
 
 verify_deployment() {
