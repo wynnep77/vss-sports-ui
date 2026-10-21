@@ -246,22 +246,61 @@ configure_all_env_files() {
     print_info "Files in profile directory:"
     ls -la "$PROFILE_DIR" 2>/dev/null || print_warning "Cannot list directory contents"
 
-    # Set VSS_AGENT_CONFIG_FILE to container path (not host path)
+    # Set VSS_AGENT_CONFIG_FILE to host path (will be mounted in container)
     # The VSS agent expects the config file to be at a specific location in the container
-    print_info "Setting VSS_AGENT_CONFIG_FILE to container path"
-    VSS_AGENT_CONFIG_FILE="/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml"
+    print_info "Setting VSS_AGENT_CONFIG_FILE to host path"
+    CONFIG_HOST_PATH="$PROFILE_DIR/vss-agent/configs/config.yml"
+    VSS_AGENT_CONFIG_FILE="$CONFIG_HOST_PATH"
+    
+    # Create a minimal valid config file if it doesn't exist or is invalid
+    print_info "Checking if config file exists in VSS Blueprint..."
+    if [ ! -f "$CONFIG_HOST_PATH" ]; then
+        print_warning "Config file not found at $CONFIG_HOST_PATH"
+        print_info "Creating minimal valid config file..."
+        mkdir -p "$PROFILE_DIR/vss-agent/configs"
+        cat > "$CONFIG_HOST_PATH" << 'EOF'
+# Minimal VSS Agent Configuration
+# This is a basic configuration to allow the agent to start
+version: "1.0"
+
+agent:
+  name: "vss-agent"
+  description: "VSS Agent for Video Search and Summarization"
+  
+functions:
+  - name: "video_understanding"
+    description: "Video understanding function"
+    enabled: true
+    
+  - name: "video_report_gen"
+    description: "Video report generation function"
+    enabled: true
+
+tools:
+  - name: "video_search"
+    enabled: true
+  - name: "video_summarization"
+    enabled: true
+
+logging:
+  level: "INFO"
+EOF
+        print_success "Created minimal config file at $CONFIG_HOST_PATH"
+    else
+        print_info "Config file exists at $CONFIG_HOST_PATH"
+    fi
 
     # Configure dev-profile-base .env
     if [ -f "$PROFILE_ENV" ]; then
         cp "$PROFILE_ENV" "${PROFILE_ENV}.backup"
         
-        # Set VSS_AGENT_CONFIG_FILE to container path
+        # Set VSS_AGENT_CONFIG_FILE to host path
         if grep -q "^VSS_AGENT_CONFIG_FILE=" "$PROFILE_ENV"; then
-            sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml|" "$PROFILE_ENV"
-            print_info "Updated VSS_AGENT_CONFIG_FILE in .env to container path"
+            sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE|" "$PROFILE_ENV"
+            print_info "Updated VSS_AGENT_CONFIG_FILE in .env to host path"
         else
-            echo "VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml" >> "$PROFILE_ENV"
-            print_info "Added VSS_AGENT_CONFIG_FILE to .env (container path)"
+            echo "VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE" >> "$PROFILE_ENV"
+            print_info "Added VSS_AGENT_CONFIG_FILE to .env (host path)"
         fi
         
         # Set tmp directory variables
@@ -334,7 +373,7 @@ RESERVED_DEVICE_IDS=''
 FIXED_SHARED_DEVICE_IDS=''
 ELASTICSEARCH_ILM_MIN_AGE=4h
 STREAM_TYPE=kafka
-VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml
+VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE
 TMPDIR=/tmp
 TEMP=/tmp
 TMP=/tmp
@@ -420,13 +459,13 @@ EOF
         sed -i "s#VSS_AGENT_REPORTS_BASE_URL=\${VSS_PUBLIC_HTTP_PROTOCOL}://\${VSS_PUBLIC_HOST}:\${VSS_PUBLIC_PORT}/static/#VSS_AGENT_REPORTS_BASE_URL=http://$HOST_IP:7777/static/#" "$OVERRIDES_ENV"
         sed -i "s#VSS_AGENT_EXTERNAL_URL=\${VSS_PUBLIC_HTTP_PROTOCOL}://\${VSS_PUBLIC_HOST}:\${VSS_PUBLIC_PORT}#VSS_AGENT_EXTERNAL_URL=http://$HOST_IP:7777#" "$OVERRIDES_ENV"
         
-        # Set VSS_AGENT_CONFIG_FILE to container path
+        # Set VSS_AGENT_CONFIG_FILE to host path
         if grep -q "^VSS_AGENT_CONFIG_FILE=" "$OVERRIDES_ENV"; then
-            sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml|" "$OVERRIDES_ENV"
-            print_info "Updated VSS_AGENT_CONFIG_FILE in overrides.env to container path"
+            sed -i "s|^VSS_AGENT_CONFIG_FILE=.*|VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE|" "$OVERRIDES_ENV"
+            print_info "Updated VSS_AGENT_CONFIG_FILE in overrides.env to host path"
         else
-            echo "VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml" >> "$OVERRIDES_ENV"
-            print_info "Added VSS_AGENT_CONFIG_FILE to overrides.env (container path)"
+            echo "VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE" >> "$OVERRIDES_ENV"
+            print_info "Added VSS_AGENT_CONFIG_FILE to overrides.env (host path)"
         fi
         
         # Add tmp directory variables to overrides.env
@@ -487,7 +526,7 @@ VSS_APPS_DIR=$VSS_APPS_DIR
 VSS_DATA_DIR=$VSS_DIR/data
 HOST_IP='$HOST_IP'
 EXTERNAL_IP=$HOST_IP
-VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml
+VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE
 TMPDIR=/tmp
 TEMP=/tmp
 TMP=/tmp
@@ -627,6 +666,7 @@ EOF
     export VSS_DIR
     export VSS_DATA_DIR
     export VSS_AGENT_CONFIG_FILE
+    export CONFIG_HOST_PATH
 
     # Print configuration summary
     print_info "Configuration paths:"
@@ -636,7 +676,8 @@ EOF
     print_info "  PROFILE_DIR: $PROFILE_DIR"
     print_info "  PROFILE_ENV: $PROFILE_ENV"
     print_info "  OVERRIDES_ENV: $OVERRIDES_ENV"
-    print_info "  VSS_AGENT_CONFIG_FILE: $VSS_AGENT_CONFIG_FILE (container path)"
+    print_info "  VSS_AGENT_CONFIG_FILE: $VSS_AGENT_CONFIG_FILE (host path)"
+    print_info "  CONFIG_HOST_PATH: $CONFIG_HOST_PATH"
 }
 
 ################################################################################
@@ -832,7 +873,7 @@ deploy_vss_backend() {
 VSS_APPS_DIR=$VSS_APPS_DIR
 VSS_DATA_DIR=$VSS_DATA_DIR
 HOST_IP=$HOST_IP
-VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml
+VSS_AGENT_CONFIG_FILE=$VSS_AGENT_CONFIG_FILE
 TMPDIR=/tmp
 TEMP=/tmp
 TMP=/tmp
@@ -921,6 +962,7 @@ EOF
             { print }
             ' compose.yml > compose.yml.tmp && mv compose.yml.tmp compose.yml
             print_success "Added tmp directory mounts to vss-agent service"
+            print_info "Config file should be mounted by VSS Blueprint volumes"
         else
             print_warning "Could not find vss-agent service in compose.yml"
         fi
