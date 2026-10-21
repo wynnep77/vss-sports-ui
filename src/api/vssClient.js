@@ -12,7 +12,7 @@ const apiClient = axios.create({
 
 // Ollama client for local LLM
 const ollamaClient = axios.create({
-  baseURL: 'http://localhost:11435',
+  baseURL: 'http://host.docker.internal:11435',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -88,7 +88,7 @@ export const chatWithAgent = async (message, sessionId = null) => {
 export const streamChatWithAgent = async (message, onChunk, sessionId = null) => {
   if (OLLAMA_ENABLED) {
     // Use Ollama for local LLM (streaming)
-    const response = await fetch('http://localhost:11435/api/generate', {
+    const response = await fetch('http://host.docker.internal:11435/api/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -800,8 +800,8 @@ deploy_ollama_backend() {
 
     # Kill any existing Ollama processes
     print_info "Stopping any existing Ollama processes..."
-    pkill -f "ollama serve" 2>/dev/null || true
-    sleep 2
+    pkill -9 -f "ollama serve" 2>/dev/null || true
+    sleep 3
 
     # Start Ollama service on port 11435 (instead of default 11434)
     print_info "Starting Ollama service on port 11435..."
@@ -812,9 +812,9 @@ deploy_ollama_backend() {
     sleep 5
     print_success "Ollama service started on port $OLLAMA_PORT (PID: $OLLAMA_PID)"
 
-    # Pull a model (e.g., llama3)
+    # Pull a model (e.g., llama3) using the correct port
     print_info "Pulling llama3 model..."
-    ollama pull llama3
+    OLLAMA_HOST=127.0.0.1:$OLLAMA_PORT ollama pull llama3
     print_success "Model pulled"
 
     # Update Sports UI .env to use Ollama
@@ -828,9 +828,9 @@ deploy_ollama_backend() {
     
     # Update or add API base URL
     if grep -q "^VITE_API_BASE_URL=" "$SPORTS_UI_ENV"; then
-        sed -i "s|^VITE_API_BASE_URL=.*|VITE_API_BASE_URL=http://$HOST_IP:$OLLAMA_PORT/api/generate|" "$SPORTS_UI_ENV"
+        sed -i "s|^VITE_API_BASE_URL=.*|VITE_API_BASE_URL=http://host.docker.internal:$OLLAMA_PORT/api/generate|" "$SPORTS_UI_ENV"
     else
-        echo "VITE_API_BASE_URL=http://$HOST_IP:$OLLAMA_PORT/api/generate" >> "$SPORTS_UI_ENV"
+        echo "VITE_API_BASE_URL=http://host.docker.internal:$OLLAMA_PORT/api/generate" >> "$SPORTS_UI_ENV"
     fi
     
     # Update or add Ollama enabled flag
@@ -1148,13 +1148,24 @@ deploy_sports_frontend() {
     docker rm vss-sports-ui 2>/dev/null || true
 
     print_info "Starting Sports UI container..."
-    docker run -d \
-        --name vss-sports-ui \
-        -p 8080:80 \
-        -e VITE_API_BASE_URL=http://$HOST_IP:8000 \
-        --add-host=host.docker.internal:host-gateway \
-        --restart unless-stopped \
-        vss-sports-ui:latest
+    if [ "$USE_OLLAMA" = true ]; then
+        docker run -d \
+            --name vss-sports-ui \
+            -p 8080:80 \
+            -e VITE_API_BASE_URL=http://host.docker.internal:11435/api/generate \
+            -e VITE_OLLAMA_ENABLED=true \
+            --add-host=host.docker.internal:host-gateway \
+            --restart unless-stopped \
+            vss-sports-ui:latest
+    else
+        docker run -d \
+            --name vss-sports-ui \
+            -p 8080:80 \
+            -e VITE_API_BASE_URL=http://$HOST_IP:8000 \
+            --add-host=host.docker.internal:host-gateway \
+            --restart unless-stopped \
+            vss-sports-ui:latest
+    fi
 
     print_success "Sports UI deployed on port 8080"
 }
@@ -1387,11 +1398,13 @@ main() {
     # Step 11: Verify deployment
     if [ "$USE_OLLAMA" = true ]; then
         print_header "Verifying Ollama Deployment"
-        print_info "Checking Ollama service..."
-        if curl -s http://localhost:11435/api/tags > /dev/null 2>&1; then
-            print_success "Ollama is running on port 11435"
+        print_info "Checking Ollama service on port 11435..."
+        OLLAMA_RESPONSE=$(curl -s http://localhost:11435/api/tags 2>/dev/null)
+        if echo "$OLLAMA_RESPONSE" | grep -q "llama3"; then
+            print_success "Ollama is running on port 11435 with llama3 model"
         else
-            print_warning "Ollama may not be responding"
+            print_warning "Ollama may not have the llama3 model loaded"
+            print_info "Response: $OLLAMA_RESPONSE"
         fi
     else
         verify_deployment
