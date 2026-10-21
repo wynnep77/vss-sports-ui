@@ -279,6 +279,21 @@ configure_all_env_files() {
             print_info "Added tmp directory variables to .env"
         fi
         
+        # Add missing variables if not present
+        if ! grep -q "^SAMPLE_VIDEO_DATASET=" "$PROFILE_ENV"; then
+            echo "SAMPLE_VIDEO_DATASET=" >> "$PROFILE_ENV"
+            echo "MODEL_NAME_2=" >> "$PROFILE_ENV"
+            echo "NUM_SENSORS=0" >> "$PROFILE_ENV"
+            echo "AI_BRIDGE_ENDPOINT=" >> "$PROFILE_ENV"
+            print_info "Added missing variables to .env"
+        fi
+        
+        # Ensure STREAM_TYPE is present
+        if ! grep -q "^STREAM_TYPE=" "$PROFILE_ENV"; then
+            echo "STREAM_TYPE=kafka" >> "$PROFILE_ENV"
+            print_info "Added STREAM_TYPE to .env"
+        fi
+        
         # Update EVAL_DIR to use the correct path
         if grep -q "^EVAL_DIR=" "$PROFILE_ENV"; then
             sed -i "s|^EVAL_DIR=.*|EVAL_DIR=$PROFILE_DIR/eval/|" "$PROFILE_ENV"
@@ -325,6 +340,10 @@ TEMP=$VSS_DIR/data/tmp
 TMP=$VSS_DIR/data/tmp
 XDG_RUNTIME_DIR=$VSS_DIR/data/tmp
 ENABLE_AUDIO=false
+SAMPLE_VIDEO_DATASET=
+MODEL_NAME_2=
+NUM_SENSORS=0
+AI_BRIDGE_ENDPOINT=
 NEXT_PUBLIC_APP_SUBTITLE="Vision (Base)"
 NEXT_PUBLIC_SIDEBAR_CHAT_WORKFLOW="VSS Agent"
 NEXT_PUBLIC_SIDEBAR_CHAT_CHAT_API_CUSTOM_AGENT_PARAMS_JSON={"params":[{"name":"llm_reasoning","label":"LLM Reasoning","type":"boolean","default-value":true,"changeable":true,"tooltip-info":"Improves tool-call planning and QA accuracy; adds latency on multi-turn conversations. Turn off for fastest multi-turn replies."},{"name":"vlm_reasoning","label":"VLM Reasoning","type":"boolean","default-value":false,"changeable":true,"tooltip-info":""}]}
@@ -387,6 +406,26 @@ EOF
             print_info "Added tmp directory variables to overrides.env"
         fi
         
+        # Add missing variables to overrides.env
+        if ! grep -q "^SAMPLE_VIDEO_DATASET=" "$OVERRIDES_ENV"; then
+            echo "SAMPLE_VIDEO_DATASET=" >> "$OVERRIDES_ENV"
+            echo "MODEL_NAME_2=" >> "$OVERRIDES_ENV"
+            echo "NUM_SENSORS=0" >> "$OVERRIDES_ENV"
+            echo "AI_BRIDGE_ENDPOINT=" >> "$OVERRIDES_ENV"
+            print_info "Added missing variables to overrides.env"
+        fi
+        
+        # Also add MODE and STREAM_TYPE if not present
+        if ! grep -q "^MODE=" "$OVERRIDES_ENV"; then
+            echo "MODE=2d" >> "$OVERRIDES_ENV"
+            print_info "Added MODE to overrides.env"
+        fi
+        
+        if ! grep -q "^STREAM_TYPE=" "$OVERRIDES_ENV"; then
+            echo "STREAM_TYPE=kafka" >> "$OVERRIDES_ENV"
+            print_info "Added STREAM_TYPE to overrides.env"
+        fi
+        
         print_success "Configured overrides.env"
     else
         print_warning "overrides.env not found at $OVERRIDES_ENV"
@@ -422,6 +461,11 @@ TEMP=$VSS_DIR/data/tmp
 TMP=$VSS_DIR/data/tmp
 XDG_RUNTIME_DIR=$VSS_DIR/data/tmp
 HAPROXY_PORT=7777
+MODE=2d
+SAMPLE_VIDEO_DATASET=
+MODEL_NAME_2=
+NUM_SENSORS=0
+AI_BRIDGE_ENDPOINT=
 VSS_PUBLIC_HTTP_PROTOCOL=http
 VSS_PUBLIC_WS_PROTOCOL=ws
 VSS_PUBLIC_HOST=$HOST_IP
@@ -729,6 +773,12 @@ TMPDIR=$VSS_DIR/data/tmp
 TEMP=$VSS_DIR/data/tmp
 TMP=$VSS_DIR/data/tmp
 XDG_RUNTIME_DIR=$VSS_DIR/data/tmp
+MODE=2d
+STREAM_TYPE=kafka
+SAMPLE_VIDEO_DATASET=
+MODEL_NAME_2=
+NUM_SENSORS=0
+AI_BRIDGE_ENDPOINT=
 EOF
     print_success "Created .env file in deploy/docker directory"
     print_info "Contents:"
