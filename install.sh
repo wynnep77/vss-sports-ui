@@ -539,52 +539,11 @@ install_docker() {
     if [ -n "$DOCKER_DATA_DIR" ]; then
         print_info "Docker data directory: $DOCKER_DATA_DIR"
         
-        # If Docker is using /mnt/docker, reconfigure to use standard path
+        # If Docker is using /mnt/docker, just warn but don't try to reconfigure
         if echo "$DOCKER_DATA_DIR" | grep -q "/mnt/docker"; then
-            print_warning "Docker is using /mnt/docker which causes volume mounting issues"
-            print_info "Reconfiguring Docker to use standard /var/lib/docker path..."
-            
-            # Stop Docker
-            sudo systemctl stop docker
-            
-            # Create or update Docker daemon configuration
-            sudo mkdir -p /etc/docker
-            sudo tee /etc/docker/daemon.json > /dev/null << 'EOF'
-{
-  "data-root": "/var/lib/docker"
-}
-EOF
-            
-            # Ensure standard Docker directory exists
-            sudo mkdir -p /var/lib/docker
-            sudo chmod 755 /var/lib/docker
-            sudo chown -R root:root /var/lib/docker
-            
-            # Start Docker with new configuration
-            sudo systemctl start docker
-            
-            # Wait for Docker to start
-            sleep 5
-            
-            # Verify the change
-            NEW_DOCKER_DATA_DIR=$(docker info 2>/dev/null | grep "Docker Root Dir" | awk '{print $3}')
-            print_info "New Docker data directory: $NEW_DOCKER_DATA_DIR"
-            
-            if echo "$NEW_DOCKER_DATA_DIR" | grep -q "/mnt/docker"; then
-                print_error "Failed to reconfigure Docker data directory"
-                print_info "Manual intervention may be required"
-            else
-                print_success "Docker reconfigured to use standard path"
-            fi
-        else
-            # Docker is using standard path, but fix permissions on /mnt/docker if it exists
-            if [ -d "/mnt/docker" ]; then
-                print_warning "Found /mnt/docker directory (not used by Docker)"
-                print_info "Fixing permissions on /mnt/docker..."
-                sudo chmod -R 755 /mnt/docker
-                sudo chown -R root:root /mnt/docker
-                print_success "Fixed permissions on /mnt/docker"
-            fi
+            print_warning "Docker is using /mnt/docker (non-standard path)"
+            print_info "This may cause issues but we won't reconfigure it automatically"
+            print_info "If you encounter issues, you may need to manually reconfigure Docker"
         fi
     fi
     
@@ -721,9 +680,9 @@ deploy_vss_backend() {
     # Fix permissions on /mnt/docker if it exists (even if not used by Docker)
     if [ -d "/mnt/docker" ]; then
         print_warning "Found /mnt/docker directory, fixing permissions..."
-        sudo chmod -R 755 /mnt/docker
-        sudo chown -R root:root /mnt/docker
-        print_success "Fixed permissions on /mnt/docker"
+        sudo chmod -R 755 /mnt/docker 2>/dev/null || print_warning "Could not chmod /mnt/docker (may be OK)"
+        sudo chown -R root:root /mnt/docker 2>/dev/null || print_warning "Could not chown /mnt/docker (may be OK)"
+        print_success "Attempted to fix permissions on /mnt/docker"
     fi
     
     # Create .env file in deploy/docker directory for docker-compose
