@@ -798,12 +798,14 @@ deploy_ollama_backend() {
     curl -fsSL https://ollama.com/install.sh | sh
     print_success "Ollama installed"
 
-    # Start Ollama service
-    print_info "Starting Ollama service..."
-    ollama serve &
+    # Start Ollama service on port 11435 (instead of default 11434)
+    print_info "Starting Ollama service on port 11435..."
+    OLLAMA_HOST=127.0.0.1
+    OLLAMA_PORT=11435
+    ollama serve --host $OLLAMA_HOST --port $OLLAMA_PORT &
     OLLAMA_PID=$!
     sleep 5
-    print_success "Ollama service started (PID: $OLLAMA_PID)"
+    print_success "Ollama service started on port $OLLAMA_PORT (PID: $OLLAMA_PID)"
 
     # Pull a model (e.g., llama3)
     print_info "Pulling llama3 model..."
@@ -812,12 +814,12 @@ deploy_ollama_backend() {
 
     # Update Sports UI .env to use Ollama
     print_info "Updating Sports UI .env to use Ollama..."
-    sed -i "s|^VITE_API_BASE_URL=.*|VITE_API_BASE_URL=http://$HOST_IP:11434/api/generate|" "$SPORTS_UI_ENV"
+    sed -i "s|^VITE_API_BASE_URL=.*|VITE_API_BASE_URL=http://$HOST_IP:$OLLAMA_PORT/api/generate|" "$SPORTS_UI_ENV"
     sed -i "s|^VITE_OLLAMA_ENABLED=.*|VITE_OLLAMA_ENABLED=true|" "$SPORTS_UI_ENV"
     if ! grep -q "^VITE_OLLAMA_ENABLED=" "$SPORTS_UI_ENV"; then
         echo "VITE_OLLAMA_ENABLED=true" >> "$SPORTS_UI_ENV"
     fi
-    print_success "Sports UI configured to use Ollama"
+    print_success "Sports UI configured to use Ollama on port $OLLAMA_PORT"
 
     print_success "Ollama backend deployed"
 }
@@ -1360,8 +1362,8 @@ main() {
     if [ "$USE_OLLAMA" = true ]; then
         print_header "Verifying Ollama Deployment"
         print_info "Checking Ollama service..."
-        if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
-            print_success "Ollama is running on port 11434"
+        if curl -s http://localhost:11435/api/tags > /dev/null 2>&1; then
+            print_success "Ollama is running on port 11435"
         else
             print_warning "Ollama may not be responding"
         fi
