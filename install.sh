@@ -802,6 +802,34 @@ EOF
     chmod 777 /tmp
     print_success "Host /tmp is ready"
     
+    # Add /tmp volume mount to vss-agent service in compose.yml
+    print_info "Adding /tmp volume mount to vss-agent service..."
+    if [ -f "compose.yml" ]; then
+        # Backup compose.yml
+        cp compose.yml compose.yml.backup
+        
+        # Add tmp mount to vss-agent service using sed
+        # This adds the mount after the volumes: line in the vss-agent service
+        if grep -q "vss-agent:" compose.yml; then
+            # Use awk to add the tmp mount to vss-agent volumes
+            awk '
+            /vss-agent:/ { in_vss_agent = 1 }
+            in_vss_agent && /volumes:/ { 
+                print
+                print "      - /tmp:/tmp"
+                print "      - /var/tmp:/var/tmp"
+                print "      - /usr/tmp:/usr/tmp"
+                next
+            }
+            /^[^ ]/ && in_vss_agent { in_vss_agent = 0 }
+            { print }
+            ' compose.yml > compose.yml.tmp && mv compose.yml.tmp compose.yml
+            print_success "Added tmp directory mounts to vss-agent service"
+        else
+            print_warning "Could not find vss-agent service in compose.yml"
+        fi
+    fi
+    
     # Add a note about config validation errors
     print_warning "NOTE: If you see 'Invalid configuration' errors with function tags,"
     print_warning "this indicates a VSS Blueprint version mismatch."
