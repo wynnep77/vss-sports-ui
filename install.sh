@@ -798,13 +798,16 @@ deploy_ollama_backend() {
     curl -fsSL https://ollama.com/install.sh | sh
     print_success "Ollama installed"
 
+    # Kill any existing Ollama processes
+    print_info "Stopping any existing Ollama processes..."
+    pkill -f "ollama serve" 2>/dev/null || true
+    sleep 2
+
     # Start Ollama service on port 11435 (instead of default 11434)
     print_info "Starting Ollama service on port 11435..."
     OLLAMA_PORT=11435
-    OLLAMA_HOST=127.0.0.1
-    OLLAMA_ORIGINS="*"
-    # Use environment variables to set host and port
-    OLLAMA_HOST=$OLLAMA_HOST OLLAMA_PORT=$OLLAMA_PORT ollama serve &
+    # Use OLLAMA_HOST with host:port format
+    OLLAMA_HOST=127.0.0.1:$OLLAMA_PORT ollama serve &
     OLLAMA_PID=$!
     sleep 5
     print_success "Ollama service started on port $OLLAMA_PORT (PID: $OLLAMA_PID)"
