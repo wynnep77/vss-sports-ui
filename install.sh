@@ -790,6 +790,38 @@ setup_vss_blueprint() {
     print_success "VSS Blueprint cloned"
 }
 
+deploy_ollama_backend() {
+    print_header "Deploying Ollama Backend"
+
+    # Install Ollama
+    print_info "Installing Ollama..."
+    curl -fsSL https://ollama.com/install.sh | sh
+    print_success "Ollama installed"
+
+    # Start Ollama service
+    print_info "Starting Ollama service..."
+    ollama serve &
+    OLLAMA_PID=$!
+    sleep 5
+    print_success "Ollama service started (PID: $OLLAMA_PID)"
+
+    # Pull a model (e.g., llama3)
+    print_info "Pulling llama3 model..."
+    ollama pull llama3
+    print_success "Model pulled"
+
+    # Update Sports UI .env to use Ollama
+    print_info "Updating Sports UI .env to use Ollama..."
+    sed -i "s|^VITE_API_BASE_URL=.*|VITE_API_BASE_URL=http://$HOST_IP:11434/api/generate|" "$SPORTS_UI_ENV"
+    sed -i "s|^VITE_OLLAMA_ENABLED=.*|VITE_OLLAMA_ENABLED=true|" "$SPORTS_UI_ENV"
+    if ! grep -q "^VITE_OLLAMA_ENABLED=" "$SPORTS_UI_ENV"; then
+        echo "VITE_OLLAMA_ENABLED=true" >> "$SPORTS_UI_ENV"
+    fi
+    print_success "Sports UI configured to use Ollama"
+
+    print_success "Ollama backend deployed"
+}
+
 deploy_vss_backend() {
     print_header "Deploying VSS Backend"
 
@@ -1241,6 +1273,23 @@ main() {
     echo "  - Internet connection"
     echo "  - NVIDIA drivers (already installed - will NOT be modified)"
     echo ""
+    
+    echo "Backend options:"
+    echo "  1. VSS Blueprint (requires NGC API key, includes VSS agent)"
+    echo "  2. Ollama (local LLM, no NGC key required)"
+    echo ""
+    
+    read -p "Select backend (1 or 2): " -n 1 -r
+    echo
+    BACKEND_CHOICE=$REPLY
+    
+    if [ "$BACKEND_CHOICE" = "2" ]; then
+        print_info "Using Ollama backend - VSS Blueprint will be skipped"
+        USE_OLLAMA=true
+    else
+        print_info "Using VSS Blueprint backend"
+        USE_OLLAMA=false
+    fi
 
     read -p "Continue? (y/n): " -n 1 -r
     echo
@@ -1275,10 +1324,17 @@ main() {
     # Step 7: Configure all .env files (now VSS Blueprint is cloned)
     configure_all_env_files
 
-    # Step 8: Deploy VSS Backend
-    if ! deploy_vss_backend; then
-        print_error "VSS backend deployment failed"
-        exit 1
+    # Step 8: Deploy Backend (VSS or Ollama)
+    if [ "$USE_OLLAMA" = true ]; then
+        if ! deploy_ollama_backend; then
+            print_error "Ollama backend deployment failed"
+            exit 1
+        fi
+    else
+        if ! deploy_vss_backend; then
+            print_error "VSS backend deployment failed"
+            exit 1
+        fi
     fi
 
     # Step 9: Setup Sports Frontend
