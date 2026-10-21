@@ -266,16 +266,16 @@ configure_all_env_files() {
         
         # Set tmp directory variables
         if grep -q "^TMPDIR=" "$PROFILE_ENV"; then
-            sed -i "s|^TMPDIR=.*|TMPDIR=$VSS_DIR/data/tmp|" "$PROFILE_ENV"
-            sed -i "s|^TEMP=.*|TEMP=$VSS_DIR/data/tmp|" "$PROFILE_ENV"
-            sed -i "s|^TMP=.*|TMP=$VSS_DIR/data/tmp|" "$PROFILE_ENV"
-            sed -i "s|^XDG_RUNTIME_DIR=.*|XDG_RUNTIME_DIR=$VSS_DIR/data/tmp|" "$PROFILE_ENV"
+            sed -i "s|^TMPDIR=.*|TMPDIR=/tmp|" "$PROFILE_ENV"
+            sed -i "s|^TEMP=.*|TEMP=/tmp|" "$PROFILE_ENV"
+            sed -i "s|^TMP=.*|TMP=/tmp|" "$PROFILE_ENV"
+            sed -i "s|^XDG_RUNTIME_DIR=.*|XDG_RUNTIME_DIR=/tmp|" "$PROFILE_ENV"
             print_info "Updated tmp directory variables in .env"
         else
-            echo "TMPDIR=$VSS_DIR/data/tmp" >> "$PROFILE_ENV"
-            echo "TEMP=$VSS_DIR/data/tmp" >> "$PROFILE_ENV"
-            echo "TMP=$VSS_DIR/data/tmp" >> "$PROFILE_ENV"
-            echo "XDG_RUNTIME_DIR=$VSS_DIR/data/tmp" >> "$PROFILE_ENV"
+            echo "TMPDIR=/tmp" >> "$PROFILE_ENV"
+            echo "TEMP=/tmp" >> "$PROFILE_ENV"
+            echo "TMP=/tmp" >> "$PROFILE_ENV"
+            echo "XDG_RUNTIME_DIR=/tmp" >> "$PROFILE_ENV"
             print_info "Added tmp directory variables to .env"
         fi
         
@@ -335,10 +335,10 @@ FIXED_SHARED_DEVICE_IDS=''
 ELASTICSEARCH_ILM_MIN_AGE=4h
 STREAM_TYPE=kafka
 VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml
-TMPDIR=$VSS_DIR/data/tmp
-TEMP=$VSS_DIR/data/tmp
-TMP=$VSS_DIR/data/tmp
-XDG_RUNTIME_DIR=$VSS_DIR/data/tmp
+TMPDIR=/tmp
+TEMP=/tmp
+TMP=/tmp
+XDG_RUNTIME_DIR=/tmp
 ENABLE_AUDIO=false
 SAMPLE_VIDEO_DATASET=
 MODEL_NAME_2=
@@ -399,10 +399,10 @@ EOF
         
         # Add tmp directory variables to overrides.env
         if ! grep -q "^TMPDIR=" "$OVERRIDES_ENV"; then
-            echo "TMPDIR=$VSS_DIR/data/tmp" >> "$OVERRIDES_ENV"
-            echo "TEMP=$VSS_DIR/data/tmp" >> "$OVERRIDES_ENV"
-            echo "TMP=$VSS_DIR/data/tmp" >> "$OVERRIDES_ENV"
-            echo "XDG_RUNTIME_DIR=$VSS_DIR/data/tmp" >> "$OVERRIDES_ENV"
+            echo "TMPDIR=/tmp" >> "$OVERRIDES_ENV"
+            echo "TEMP=/tmp" >> "$OVERRIDES_ENV"
+            echo "TMP=/tmp" >> "$OVERRIDES_ENV"
+            echo "XDG_RUNTIME_DIR=/tmp" >> "$OVERRIDES_ENV"
             print_info "Added tmp directory variables to overrides.env"
         fi
         
@@ -456,10 +456,10 @@ VSS_DATA_DIR=$VSS_DIR/data
 HOST_IP='$HOST_IP'
 EXTERNAL_IP=$HOST_IP
 VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml
-TMPDIR=$VSS_DIR/data/tmp
-TEMP=$VSS_DIR/data/tmp
-TMP=$VSS_DIR/data/tmp
-XDG_RUNTIME_DIR=$VSS_DIR/data/tmp
+TMPDIR=/tmp
+TEMP=/tmp
+TMP=/tmp
+XDG_RUNTIME_DIR=/tmp
 HAPROXY_PORT=7777
 MODE=2d
 SAMPLE_VIDEO_DATASET=
@@ -769,10 +769,10 @@ VSS_APPS_DIR=$VSS_APPS_DIR
 VSS_DATA_DIR=$VSS_DATA_DIR
 HOST_IP=$HOST_IP
 VSS_AGENT_CONFIG_FILE=/vss-agent/deploy/docker/developer-profiles/dev-profile-base/vss-agent/configs/config.yml
-TMPDIR=$VSS_DIR/data/tmp
-TEMP=$VSS_DIR/data/tmp
-TMP=$VSS_DIR/data/tmp
-XDG_RUNTIME_DIR=$VSS_DIR/data/tmp
+TMPDIR=/tmp
+TEMP=/tmp
+TMP=/tmp
+XDG_RUNTIME_DIR=/tmp
 MODE=2d
 STREAM_TYPE=kafka
 SAMPLE_VIDEO_DATASET=
@@ -795,6 +795,18 @@ EOF
     mkdir -p "$VSS_DATA_DIR/tmp"
     chmod 777 "$VSS_DATA_DIR/tmp"
     print_success "Created $VSS_DATA_DIR/tmp"
+    
+    # Also ensure host /tmp is accessible
+    print_info "Ensuring host /tmp is accessible..."
+    mkdir -p /tmp
+    chmod 777 /tmp
+    print_success "Host /tmp is ready"
+    
+    # Add a note about config validation errors
+    print_warning "NOTE: If you see 'Invalid configuration' errors with function tags,"
+    print_warning "this indicates a VSS Blueprint version mismatch."
+    print_info "The VSS Blueprint config file may need to be updated to match the agent version."
+    print_info "Check the VSS Blueprint repository for the correct configuration."
     
     # Create local directories for data storage (as fallback for volume mounting issues)
     print_info "Creating local data directories as fallback..."
@@ -824,10 +836,10 @@ EOF
     export RT_VLM_DEVICE_ID='0'
     
     # Set tmp directory for containers
-    export TMPDIR=$VSS_DIR/data/tmp
-    export TEMP=$VSS_DIR/data/tmp
-    export TMP=$VSS_DIR/data/tmp
-    export XDG_RUNTIME_DIR=$VSS_DIR/data/tmp
+    export TMPDIR=/tmp
+    export TEMP=/tmp
+    export TMP=/tmp
+    export XDG_RUNTIME_DIR=/tmp
     
     # Explicitly prevent driver installation
     export SKIP_DRIVER_INSTALL=true
