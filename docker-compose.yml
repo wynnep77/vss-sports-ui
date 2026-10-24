@@ -2,37 +2,17 @@ version: '3.8'
 
 services:
   vss-sports-ui:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
     container_name: vss-sports-ui
     ports:
-      - "80:80"
+      - "8080:80"
     environment:
-      - VITE_API_BASE_URL=http://host.docker.internal:8000
-    networks:
-      - vss-network
-    depends_on:
-      - vss-agent
+      - VITE_VSS_API_URL=http://host.docker.internal:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
-
-  vss-agent:
-    # This is a placeholder - you'll need to configure this to point to your actual VSS agent deployment
-    # The VSS agent should be running separately according to the NVIDIA blueprint deployment
-    image: nvcr.io/nvidia/blueprint/vss-agent:latest
-    container_name: vss-agent
-    ports:
-      - "8000:8000"
-    environment:
-      - HOST_IP=host.docker.internal
-      - LLM_BASE_URL=http://host.docker.internal:30081
-      - VLM_BASE_URL=http://host.docker.internal:30082
-      - VST_INTERNAL_URL=http://host.docker.internal:30888
-      - VST_EXTERNAL_URL=http://host.docker.internal:30888
     networks:
       - vss-network
-    # Note: This service is for reference only. Deploy the actual VSS agent
-    # following the NVIDIA blueprint instructions
 
 networks:
   vss-network:
