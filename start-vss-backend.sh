@@ -36,6 +36,13 @@ if [ -z "$NGC_API_KEY" ]; then
     fi
 fi
 
+# Check if deploy directory exists
+if [ ! -d "$DEPLOY_DIR" ]; then
+    echo "Error: VSS deploy directory not found at $DEPLOY_DIR"
+    echo "Please ensure VSS Blueprint is installed"
+    exit 1
+fi
+
 # Create/Update .env file in deploy/docker directory
 cd "$DEPLOY_DIR"
 
@@ -48,6 +55,8 @@ INTERNAL_IP=$HOST_IP
 VSS_PUBLIC_HOST=$HOST_IP
 VSS_PUBLIC_PORT=8000
 VSS_PUBLIC_HTTP_PROTOCOL=http
+VSS_PUBLIC_WS_PROTOCOL=ws
+VSS_VERSION=1.0.0
 
 # NGC Configuration
 NGC_CLI_API_KEY=$NGC_API_KEY
@@ -124,6 +133,8 @@ DATASET_DIR=$VSS_DIR/data/dataset
 DATASET_FILE_NAME=dataset.json
 REPORT_REFERENCE_BASE_DIR=$VSS_DIR/data/references
 EVAL_LLM_JUDGE_NAME=
+DATASET_TYPE=video
+MODEL_NAME_2D=
 
 # Grafana Configuration
 GF_SECURITY_ADMIN_USER=admin
@@ -156,7 +167,16 @@ echo ""
 
 # Start VSS Blueprint
 echo "Starting VSS Blueprint services..."
-docker compose up -d
+if [ -f "compose.yml" ]; then
+    docker compose up -d
+elif [ -f "docker-compose.yml" ]; then
+    docker compose up -d
+else
+    echo "Error: No compose.yml or docker-compose.yml found in $DEPLOY_DIR"
+    echo "Contents of directory:"
+    ls -la
+    exit 1
+fi
 
 echo ""
 echo "Waiting for services to start..."
@@ -165,7 +185,11 @@ sleep 10
 # Check if services are running
 echo ""
 echo "Checking service status..."
-docker compose ps
+if [ -f "compose.yml" ]; then
+    docker compose ps
+elif [ -f "docker-compose.yml" ]; then
+    docker compose ps
+fi
 
 echo ""
 echo "Testing VSS backend health..."
