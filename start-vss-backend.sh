@@ -26,6 +26,16 @@ HOST_IP=$(hostname -I | awk '{print $1}')
 echo "Detected Host IP: $HOST_IP"
 echo ""
 
+# Prompt for NGC API key if not set
+if [ -z "$NGC_API_KEY" ]; then
+    echo "Enter your NVIDIA NGC API Key (or press Enter to skip):"
+    read -s NGC_API_KEY
+    echo ""
+    if [ -z "$NGC_API_KEY" ]; then
+        echo "⚠ No API key provided - some features may not work"
+    fi
+fi
+
 # Create/Update .env file in deploy/docker directory
 cd "$DEPLOY_DIR"
 
@@ -37,8 +47,8 @@ EXTERNAL_IP=$HOST_IP
 INTERNAL_IP=$HOST_IP
 
 # NGC Configuration
-NGC_CLI_API_KEY=
-NVIDIA_API_KEY=
+NGC_CLI_API_KEY=$NGC_API_KEY
+NVIDIA_API_KEY=$NGC_API_KEY
 
 # LLM Configuration
 LLM_MODE=nim
