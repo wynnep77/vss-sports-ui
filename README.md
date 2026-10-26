@@ -11,9 +11,38 @@ A professional web interface for analyzing sports videos using NVIDIA's VSS (Vid
 
 ## Prerequisites
 
-- NVIDIA VSS Blueprint installed and running on your server
+- NVIDIA VSS Blueprint installed on your server
 - Node.js 18+ and npm for local development
 - Docker and Docker Compose for deployment
+
+## Starting the VSS Backend
+
+Before running the Sports UI, ensure the VSS Blueprint backend is running:
+
+1. **If VSS Blueprint is already installed**, use the provided startup script:
+```bash
+cd /home/demouser/vss-sports-ui
+chmod +x start-vss-backend.sh
+./start-vss-backend.sh
+```
+
+2. **Or manually start VSS Blueprint**:
+```bash
+cd /home/demouser/video-search-and-summarization/deploy/docker
+docker compose up -d
+```
+
+3. **Verify the backend is running**:
+```bash
+curl http://localhost:8000/health
+```
+
+The startup script automatically configures required environment variables:
+- LLM_MODE, LLM_NAME, LLM_DEVICE_ID
+- VLM_MODE, VLM_NAME, VLM_DEVICE_ID
+- VST_MODE, VST_NAME
+- Network configuration (HOST_IP, EXTERNAL_IP, INTERNAL_IP)
+- Service ports and data directories
 
 ## Quick Setup
 
