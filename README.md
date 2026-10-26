@@ -15,6 +15,26 @@ A professional web interface for analyzing sports videos using NVIDIA's VSS (Vid
 - Node.js 18+ and npm for local development
 - Docker and Docker Compose for deployment
 
+## Quick Setup
+
+Run the setup script to configure the environment:
+
+**Linux/Mac:**
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+**Windows:**
+```cmd
+setup.bat
+```
+
+The script will guide you through:
+- Creating the .env file
+- Setting the VSS backend URL
+- Choosing between local development or Docker deployment
+
 ## Local Development
 
 1. Install dependencies:
@@ -22,7 +42,7 @@ A professional web interface for analyzing sports videos using NVIDIA's VSS (Vid
 npm install
 ```
 
-2. Configure environment variables:
+2. Configure environment variables (or use setup script):
 ```bash
 cp .env.example .env
 # Edit .env and set VITE_VSS_API_URL to your VSS backend URL
